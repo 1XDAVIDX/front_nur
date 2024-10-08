@@ -1,23 +1,19 @@
 import { createRouter, createWebHistory } from "vue-router";
 import  registroUsuario  from '@/components/registroUsuario.vue';
 import registroProducto from "@/components/registroProducto.vue";
-import principal from "../principal.vue";
-import casa from "../casa.vue";
-// import consultaProducto from "../consultaProducto.vue";
 import eliminarProducto from "../eliminarProducto.vue";
 import modificarProducto from "../modificarProducto.vue";
+import pruebaLogin from "../pruebaLogin.vue";
+import cliente from "@/components/cliente.vue"
+import barraNavegacion from "../barraNavegacion.vue";
+import admin from "@/components/admin.vue"
 
 
 const routes=[
     {
         path:'/',
-        name:'casa',
-        component:casa
-    },
-    {
-        path:'/principal',
-        name:'principal',
-        component:principal
+        name:'barraNavegacion',
+        component:barraNavegacion
     },
     {
         path:'/registroUsuario',
@@ -29,11 +25,7 @@ const routes=[
         name:'registroProducto',
         component:registroProducto
     },
-    // {
-    //     path:'/consultaProducto',
-    //     name:'consultaProducto',
-    //     component:consultaProducto
-    // },
+
     {
         path:'/eliminarProducto',
         name:'eliminarProducto',
@@ -43,6 +35,21 @@ const routes=[
         path:'/modificarProducto',
         name:'modificarProducto',
         component:modificarProducto
+    },
+    {
+        path:'/pruebaLogin',
+        name:'pruebaLogin',
+        component:pruebaLogin
+    },
+    {
+        path:'/cliente',
+        name:'cliente',
+        component:cliente
+    },
+    {
+        path:'/admin',
+        name:'admin',
+        component:admin
     }
     
 ]

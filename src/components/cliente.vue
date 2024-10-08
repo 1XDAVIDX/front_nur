@@ -58,11 +58,10 @@ export default {
     <!-- Barra de navegación secundaria -->
     <header>
       <nav class="secondary-nav">
-        <router-link to="/modificarProducto">Modificar Producto</router-link>
-        <router-link to="/eliminarProducto">Eliminar Producto</router-link>
+
         <router-link to="/registroUsuario">Crear cuenta</router-link>
         <router-link to="/pruebaLogin">Ingresar</router-link>
-        <router-link to="/registroProducto">Registrar Producto</router-link>
+        
       </nav>
     </header>
 
