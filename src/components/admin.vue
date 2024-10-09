@@ -81,7 +81,9 @@ export default {
               <strong>Descripción:</strong> {{ producto.descripcion }}<br>
               <strong>Precio:</strong> ${{ producto.precio.toFixed(2) }}<br>
               <strong>Stock:</strong> {{ producto.stock }}<br>
+              <router-link to="/comprar"><button  class="btn">Compra</button></router-link>
             </div>
+            
           </li>
 
           
@@ -125,7 +127,21 @@ export default {
 </template>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+.btn {
+  background-color: #007bff;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s ease;
+  
+}
+
+.btn:hover {
+  background-color: #0056b3;
+}
 
 html, body {
   height: 100%;
@@ -274,6 +290,7 @@ h2 {
   justify-content: center;
   align-items: center;
   flex-direction: column;
+  
 }
 
 ul {

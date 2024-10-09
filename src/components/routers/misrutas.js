@@ -6,7 +6,8 @@ import modificarProducto from "../modificarProducto.vue";
 import pruebaLogin from "../pruebaLogin.vue";
 import cliente from "@/components/cliente.vue"
 import barraNavegacion from "../barraNavegacion.vue";
-import admin from "@/components/admin.vue"
+import admin from "@/components/admin.vue";
+import comprar from "../comprar.vue";
 
 
 const routes=[
@@ -50,6 +51,11 @@ const routes=[
         path:'/admin',
         name:'admin',
         component:admin
+    },
+    {
+        path:'/comprar',
+        name:'comprar',
+        component:comprar
     }
     
 ]
