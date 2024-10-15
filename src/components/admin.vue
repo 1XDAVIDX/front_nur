@@ -6,8 +6,17 @@ export default {
   setup() {
   
     const data = ref([]);
+    const pedido = ref([]);
+    
+    const facturapedido = async ()=>{
+      try {
+        const respuesta = await axios.get('http://127.0.0.1:8000/compra');
+        pedido.value = respuesta.data
+      } catch (error) {
+        console.log("No se cargaron los datos ", error);
+      }
+    }
 
-  
     const consultaProducto = async () => {
       try {
         const respuesta = await axios.get('http://127.0.0.1:8000/consultarProductos');
@@ -19,7 +28,11 @@ export default {
 
     
 
-    onMounted(consultaProducto);
+    onMounted(() =>  {
+      consultaProducto(),
+      facturapedido()
+      }
+     );
 
     // Comentarios de clientes
     const comentarios = ref([
@@ -32,7 +45,8 @@ export default {
 
     return {
       data,
-      comentarios
+      comentarios,
+      pedido
     };
   }
 };
@@ -68,7 +82,19 @@ export default {
 
     <!-- Carrusel de imágenes -->
     
-
+    <div class="cards">
+      <ul>
+        <li v-for="i in pedido" :key="i" class="card">
+          <b class="pedidoespacios">ID Compra: {{ i.id_compra }}</b>
+          <b class="pedidoespacios">ID Usuario:{{ i.id_usuario }}</b>       
+          <b class="pedidoespacios">ID Producto:{{ i.id_producto }}</b>
+          <b class="pedidoespacios">Cantida:{{ i.cantidad }}</b>
+          <b class="pedidoespacios">Total:{{ i.total }}</b><br>
+          <button  class="btn"> Hacer pedido</button>
+          
+        </li>
+      </ul>
+    </div>
     <!-- Productos -->
     <div>
       <section class="cards">
@@ -127,7 +153,11 @@ export default {
 </template>
 
 <style>
-.btn {
+.pedidoespacios{
+  margin-right: 10%;
+
+}
+.btn {margin-top: 10%;
   background-color: #007bff;
   color: white;
   padding: 10px 20px;
