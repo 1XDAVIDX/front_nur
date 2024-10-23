@@ -50,7 +50,7 @@ export default {
     <form @submit.prevent="insertarUsuario" class="formulario">
         <div id="tituloheader">
         <h1 id="titulo">INICIO SESIÓN</h1>
-        <button type="button" @click="()=>router.go(-1)"  id="x"></button>
+        <button type="button" @click="()=>router.go(-1)"  id="x">X</button>
         </div>
         <label class="respuesta">ID usuario:
             <input v-model="usuario.id_usuario" type="text" required>
@@ -73,6 +73,13 @@ export default {
 </template>
 
 <style>
+#x {
+    background: none; 
+    border: none; 
+    font-size: 20px; 
+    color: #ff5555; 
+    cursor: pointer; 
+}
 
 .formulario {
     

@@ -14,11 +14,13 @@ export default{
             try {
                 const respuesta =await axios.post("http://127.0.0.1:8000/compra",verificar.value)
                 Swal.fire({
-                    icon:"success"
+                    icon:"success",
+                    title:"Compra Exitosa"
                 })
             } catch (error) {
                 Swal.fire({
-                    icon:"error"
+                    icon:"error",
+                    text:"Error al comprar"
                 })
             }
         }
@@ -35,7 +37,7 @@ export default{
 <form @submit.prevent="comprar" class="formulario">
         <div id="tituloheader">
         <h1 id="titulo">Comprar</h1>
-        <button type="button" @click="router.go(-1)"  id="x"></button>
+        <button type="button" @click="router.go(-1)"  id="x">X</button>
         </div>
         <label class="respuesta">ID Producto:
             <input v-model="verificar.id_producto" type="text" required>
@@ -52,6 +54,14 @@ export default{
 
 </template>
 <style>
+#x {
+    background: none; 
+    border: none; 
+    font-size: 20px; 
+    color: #ff5555; 
+    cursor: pointer; 
+}
+
 .formulario{
     
     width: 20%;

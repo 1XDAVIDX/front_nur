@@ -8,6 +8,7 @@ import cliente from "@/components/cliente.vue"
 import barraNavegacion from "../barraNavegacion.vue";
 import admin from "@/components/admin.vue";
 import comprar from "../comprar.vue";
+import completado from "../completado.vue";
 
 
 const routes=[
@@ -56,6 +57,11 @@ const routes=[
         path:'/comprar',
         name:'comprar',
         component:comprar
+    },
+    {
+        path:'/completado',
+        name:'completado',
+        component:completado
     }
     
 ]

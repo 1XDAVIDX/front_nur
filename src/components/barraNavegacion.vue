@@ -75,6 +75,7 @@ export default {
         <ul>
           <li v-for="producto in data" :key="producto.id_producto" class="card">
             <div class="card-content">
+              <router-link to="/modificarProducto"><div  class="modi">✏️</div></router-link>
               <div class="imagen"></div>
               <strong>ID:</strong> {{ producto.id_producto }}<br>
               <strong>Nombre:</strong> {{ producto.nombre }}<br>
@@ -127,6 +128,11 @@ export default {
 </template>
 
 <style>
+.modi {
+  text-align: end;
+  margin-bottom: 5%;
+  
+}
 .btn {
   background-color: #007bff;
   color: white;

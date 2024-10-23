@@ -24,7 +24,10 @@ export default{
                     title:'Modificado'
                 })
             } catch (error) {
-                console.error("Problemas al consumir la api")
+                Swal.fire({
+                    icon:"error",
+                    title:"Producto no existe"
+                })
             }
         }
         const router = useRouter();
@@ -42,7 +45,7 @@ export default{
 <form @submit.prevent="modificadoProducto" class="formulario">
     <div id="tituloheader">
         <h1 id="titulo">REGISTRO</h1>
-        <button type="button" @click="router.go(-1)"  id="x"></button>
+        <button type="button" @click="router.go(-1)"  id="x">X</button>
         </div>
     <label class="respuesta" >ID Modificar:
         <input v-model="productoModificado.id_producto_validar" type="text">
@@ -68,6 +71,14 @@ export default{
 
 </template>
 <style>
+#x {
+    background: none; 
+    border: none; 
+    font-size: 20px; 
+    color: #ff5555; 
+    cursor: pointer; 
+}
+
 .formulario{
     
     width: 20%;

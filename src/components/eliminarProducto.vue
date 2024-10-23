@@ -48,7 +48,7 @@ export default {
     <form @submit.prevent="eliminarProducto" class="formulario">
         <div id="tituloheader">
         <h1 id="titulo">INICIO SESIÓN</h1>
-        <button type="button" @click="()=>router.go(-1)"  id="x"></button>
+        <button type="button" @click="()=>router.go(-1)"  id="x">X</button>
         </div>
         <label class="respuesta">ID Producto:
             <input v-model="iD_eliminador.id_producto" type="text" required>
@@ -62,6 +62,14 @@ export default {
 </template>
 
 <style>
+#x {
+    background: none; 
+    border: none; 
+    font-size: 20px; 
+    color: #ff5555; 
+    cursor: pointer; 
+}
+
 .formulario {
     
     position: fixed; 
