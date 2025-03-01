@@ -9,6 +9,12 @@ import barraNavegacion from "../barraNavegacion.vue";
 import admin from "@/components/admin.vue";
 import comprar from "../comprar.vue";
 import completado from "../completado.vue";
+import carritoCompra from "../carritoCompra.vue";
+import agregarCarrito from "../agregarCarrito.vue";
+import quitarCarrito from "../quitarCarrito.vue";
+import inventario from "../inventario.vue";
+import inventarioCliente from "../inventarioCliente.vue";
+import categoria from "../categoria.vue";
 
 
 const routes=[
@@ -56,13 +62,50 @@ const routes=[
     {
         path:'/comprar',
         name:'comprar',
-        component:comprar
+        component: comprar
     },
     {
         path:'/completado',
         name:'completado',
         component:completado
+    },
+    {
+        path:'/carritoCompra',
+        name:'carritoCompra',
+        component:carritoCompra
+    },
+    {
+        path:'/agregarCarrito',
+        name:'agregarCarrito',
+        component:agregarCarrito
+    },
+    {
+        path:'/quitarCarrito',
+        name:'quitarCarrito',
+        component:quitarCarrito
     }
+    ,
+    {
+        path:'/inventario',
+        name:'inventario',
+        component:inventario
+    }
+    ,
+    {
+        path:'/inventarioCliente',
+        name:'inventarioCliente',
+        component:inventarioCliente
+    }
+    ,
+    {
+        path:'/categoria',
+        name:'categoria',
+        component:categoria
+    }
+    
+    
+    
+    
     
 ]
 

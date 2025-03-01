@@ -9,19 +9,19 @@ export default{
         const route = useRoute();
         const query = route.query;
         const verificar = ref({
-            id_compra: query.id_compra,
-            id_usuario: query.id_usuario
+            id_carrito: query.id_carrito,
+            
         })
         const factura = ref({})
         const pedidoHecho = async () =>{
             try {
-                const respuesta =await axios.delete("http://127.0.0.1:8000/completada/"+verificar.value.id_compra+"/"+verificar.value.id_usuario);
+                const respuesta =await axios.delete("http://127.0.0.1:8000/quitar/"+verificar.value.id_carrito);
                 factura.value = respuesta.data
                 console.log("ok",factura.value)
                 Swal.fire({
                     icon:"success",
                     title:"Pedido Hecho",
-                    text:`Producto: ${factura.value.id_producto} Cantidad:${factura.value.cantidad} Total:${factura.value.total}\nID compra:${factura.value.id_compra} ID Usuario:${factura.value.id_usuario} Nombre:${factura.value.nombre} Correo:${factura.value.email}`
+                    text:"Eliminado Del carrito"
                 })
 
             } catch (error) {

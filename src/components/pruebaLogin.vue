@@ -4,52 +4,76 @@ import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { ref } from 'vue';
 
+
+import * as jwt_decode from 'jwt-decode';
+//import jwt_decode from 'jwt-decode';
+
 export default {
     setup() {
 
         function crearCuenta() {
             router.push({name:"registroUsuario"})
         }
+
         const login = ref({
-            id_usuario:"",
+            id_usuario: "",
             contraseña: "",
-            rol:""
         });
-        const message = ref('');
+
+        //const message = ref('');
         const mirar = ref({});
-        
-        
+
         const insertarlogin = async () => {
             try {
+                // Realiza la solicitud POST
                 const respuesta = await axios.post('http://127.0.0.1:8000/login', login.value);
                 
-                message.value = respuesta.data.message;
-                mirar.value = respuesta.data.rol;
+                // Guarda el token en LocalStorage
+                const token = respuesta.data.access_token;
+                localStorage.setItem('access_token', token);
+                console.log(localStorage.getItem('access_token') )
+
+                // Decodifica el token para obtener el rol
                 
-                message.value = Swal.fire({
-                    icon:'success',
-                    title:'Inicio de sesión exitoso',
-                    text:'Bienvenido a tu cuenta'
+                const decodedToken = jwt_decode.jwtDecode(token);  // Usando la importación nombrada
+
+                mirar.value = decodedToken.rol; 
+                console.log(decodedToken) 
                 
-                    });
-                if (mirar.value=="admin") {
-                    router.replace({name:"admin"})
-                }else if(mirar.value=="cliente"){
-                    router.replace({name:"cliente"})
+                
+
+                // Guarda los datos del token en LocalStorage
+                localStorage.setItem('access_token', JSON.stringify(decodedToken));
+                const decodificado = JSON.parse(localStorage.getItem('access_token'))
+                console.log("valores:", decodificado )
+
+
+                // Muestra una alerta de éxito
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Inicio de sesión exitoso',
+                    text: 'Bienvenido a tu cuenta'
+                });
+
+                // Redirige al usuario según su rol
+                if (mirar.value === "admin") {
+                    router.replace({name: "admin"});
+                } else if (mirar.value === "cliente") {
+                    router.replace({name: "cliente"});
                 }
-                
+
             } catch (error) {
                 console.error("Error al registrar datos", error);
-                message.value = Swal.fire({
-                        icon:'error',
-                        title:'Error de iniciode sesion',
-                        text:'Usuario No Existe' 
-
-                    });
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de inicio de sesión',
+                    text: 'Usuario No Existe'
+                });
             }
         };
+
         const router = useRouter();
-        
+
         return {
             login,
             insertarlogin,
@@ -90,9 +114,8 @@ export default {
 }
 
 .formulario {
-    
     position: fixed; 
-    top: 20%; 
+    top: 10%; 
     width: 20%;
     left: 50%; 
     transform: translateX(-50%); 
@@ -100,8 +123,6 @@ export default {
     padding: 20px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
     z-index: 1000; 
-
-
 }
 
 .respuesta{
@@ -112,15 +133,12 @@ export default {
 }
 .boton{
     margin-top: 30px;
-    
     display: block;
     width: 100%; 
     box-sizing: border-box;
-    
 }
 #tituloheader{
     display: flex;
-    
 }
 
 #x{
@@ -130,7 +148,6 @@ export default {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-
 }
 .mensaje{
     text-align: center;

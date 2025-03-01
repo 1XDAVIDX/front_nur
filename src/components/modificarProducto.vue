@@ -1,41 +1,76 @@
 <script>
 import Swal from 'sweetalert2';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios';
 import { ref } from 'vue';
 
 export default{
     setup(){
+        const route = useRoute()
+        const query = route.query
+        const status = ref(null)
         const productoModificado = ref({
-            id_producto_validar:"",
+            id_producto_validar: query.productoId,
             id_producto:"",
             nombre:"",
             descripcion:"",
             precio:0,
             stock:0,
+            
         })
-        const message = ref('')
-        const modificadoProducto = async ()=>{
-            try {
-                const respuesta =await axios.put('http://127.0.0.1:8000/modificarProducto/'+ productoModificado.value.id_producto_validar, productoModificado.value);
-                message.value = respuesta.data.message
-                message.value = Swal.fire({
-                    icon:'success',
-                    title:'Modificado'
-                })
-            } catch (error) {
-                Swal.fire({
-                    icon:"error",
-                    title:"Producto no existe"
-                })
+        
+        const queryValidar = Boolean(query?.productoId);
+        const fileInput =  ref(null);
+        const onFilechange = (event) =>{
+            fileInput.value = event.target.files[0];
+        };
+
+        const modificadoProducto = async () => {
+            const formData = new FormData();
+            formData.append("id_producto", productoModificado.value.id_producto);
+            formData.append("nombre", productoModificado.value.nombre);
+            formData.append("descripcion", productoModificado.value.descripcion);
+            formData.append("precio", productoModificado.value.precio);
+            formData.append("stock", productoModificado.value.stock);
+            if (fileInput.value){
+                formData.append("file", fileInput.value);
             }
-        }
+            try {
+
+                const respuesta = await axios.put(
+                    `http://127.0.0.1:8000/modificarProducto/${productoModificado.value.id_producto_validar}`, formData,{
+                    headers:{
+                        'Content-Type': 'multipart/form-data'
+                    },
+                });
+
+                status.value = respuesta.status
+                Swal.fire({ icon: 'success', title: 'Modificado' });
+                
+            
+            
+            }catch (error) {
+                if (error.response) {
+                    status.value = error.response.status; // Capturar el estado del error
+                    if (status.value === 500) {
+                        Swal.fire({ icon: 'error', title: 'ID ya utilizado' });
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Producto no existe' });
+                    }
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error en la conexión al servidor' });
+                }
+            }
+        };
+
         const router = useRouter();
 
         return{
             productoModificado,
             modificadoProducto,
-            router
+            router,
+            onFilechange,
+            queryValidar
         };
     }
 }
@@ -47,7 +82,7 @@ export default{
         <h1 id="titulo">REGISTRO</h1>
         <button type="button" @click="router.go(-1)"  id="x">X</button>
         </div>
-    <label class="respuesta" >ID Modificar:
+    <label class="respuesta" v-if="!queryValidar">ID Modificar:
         <input v-model="productoModificado.id_producto_validar" type="text">
     </label>
     <label  class="respuesta">ID Producto:
@@ -65,12 +100,18 @@ export default{
     <label class="respuesta">Stock:
         <input v-model="productoModificado.stock" type="number" required>
     </label>
+
+    <label class="respuesta">Imagen:
+    <input type="file" @change="onFilechange" required>
+    </label>
+
     <button type="submit" class="boton">MODIFCAR</button>
 
 </form>
 
 </template>
 <style>
+
 #x {
     background: none; 
     border: none; 

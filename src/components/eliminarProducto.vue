@@ -1,15 +1,20 @@
 <script>
 import Swal from 'sweetalert2';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios';
 import { ref } from 'vue';
 
 
 export default {
     setup(){
+        const route = useRoute();
+        const query = route.query;
+        const pregun = Boolean(query?.productoId);
+        
         const iD_eliminador = ref({
-            id_producto :""
+            id_producto : query.productoId 
         })
+        
         const message = ref('');
 
         const eliminarProducto = async () =>{
@@ -19,8 +24,11 @@ export default {
                 message.value = Swal.fire({
                     icon:"success",
                     title:"¡Producto eliminado!"
+
                     
-                })
+                    
+                });
+                
             } catch (error) {
                 
                 message.value = Swal.fire({
@@ -34,7 +42,10 @@ export default {
         return {
             iD_eliminador,
             eliminarProducto,
-            router
+            router,
+            pregun
+            
+            
             
         };
     }
@@ -47,13 +58,13 @@ export default {
 <template>
     <form @submit.prevent="eliminarProducto" class="formulario">
         <div id="tituloheader">
-        <h1 id="titulo">INICIO SESIÓN</h1>
+        <h1 id="titulo">Eliminar Producto </h1>
         <button type="button" @click="()=>router.go(-1)"  id="x">X</button>
         </div>
-        <label class="respuesta">ID Producto:
+        <label v-if="!pregun"  class="respuesta">ID Producto:
             <input v-model="iD_eliminador.id_producto" type="text" required>
         </label>
-        <button type="submit" class="boton">Enviar</button>
+        <button type="submit" class="boton">Eliminar</button>
 
 
     </form>
@@ -73,7 +84,7 @@ export default {
 .formulario {
     
     position: fixed; 
-    top: 20%; 
+    top: 10%; 
     width: 20%;
     left: 50%; 
     transform: translateX(-50%); 

@@ -9,36 +9,25 @@ export default{
         //const id_usu = ref({})
         const decodificado = JSON.parse(localStorage.getItem('access_token'))
         const idlocalestore = decodificado?.id_usuario;
-        const route = useRoute();
-        const query = route.query;
         const verificarUsuario = Boolean(idlocalestore)
-        const verificarCantidad = Boolean(query.cantidad)
+        const route = useRoute();
         const verificar = ref({
             id_producto:"",
             id_usuario:idlocalestore,
-            cantidad: query?.cantidad
+            cantidad:0
         })
         const comprar = async ()=>{
             const query = route.query;
             try {
-                const respuesta =await axios.post("http://127.0.0.1:8000/compra",{
+                const respuesta =await axios.post("http://127.0.0.1:8000/carrito",{
                     ...verificar.value,
                     id_producto: query.productoId,
-                    
                     
                 })
                 Swal.fire({
                     icon:"success",
                     title:"Compra Exitosa",
-                    html: `
-                        <b>ID Compra:</b> ${respuesta.data.id_compra} <br>
-                        <b>ID Producto:</b> ${respuesta.data.id_producto} <br>
-                        <b>Nombre Producto:</b> ${respuesta.data.nombre_producto} <br>
-                        <b>Descripción:</b> ${respuesta.data.descripcion} <br>
-                        <b>Precio:</b> ${respuesta.data.precio} <br>
-                        <b>Stock:</b> ${respuesta.data.stock} <br>
-                        <b>Total:</b> ${respuesta.data.total}
-                    `,
+                    
                 })
             } catch (error) {
                 Swal.fire({
@@ -48,57 +37,20 @@ export default{
             }
         }
         console.log("valores:", idlocalestore )
-
-        const verificar2 = ref({
-            id_carrito: query.id_carrito,
-            
-        })
-        const validarCarrito = Boolean(query.id_carrito)
-        const factura = ref({})
-        const pedidoHecho = async () =>{
-            try {
-                const respuesta =await axios.delete("http://127.0.0.1:8000/quitar/"+verificar2.value.id_carrito);
-                factura.value = respuesta.data
-                console.log("ok",factura.value)
-                Swal.fire({
-                    icon:"success",
-                    title:"Pedido Hecho",
-                    text:"Eliminado Del carrito"
-                })
-
-            } catch (error) {
-                Swal.fire({
-                    icon:"error",
-                    title:"Datos no son correctos"
-                })
-            }
-        }
-        const comprarYEliminar = async () => {
-            await comprar(); 
-            
-            if(validarCarrito){
-                await pedidoHecho();
-            }
-        }
-
-
         const router = useRouter()
         return{
             verificar,
             comprar,
             router,
-            verificarCantidad,
-            pedidoHecho,
-            comprarYEliminar,
             verificarUsuario
         }
     }
 }
 </script>
 <template>
-<form @submit.prevent="comprarYEliminar" class="formulario">
+<form @submit.prevent="comprar" class="formulario">
         <div id="tituloheader">
-        <h1 id="titulo">Comprar</h1>
+        <h1 id="titulo">Carrito De Compras</h1>
         <button type="button" @click="router.go(-1)"  id="x">X</button>
         </div>
         <!-- <label class="respuesta">ID Producto:
@@ -107,10 +59,10 @@ export default{
         <label v-if="!verificarUsuario" class="respuesta">ID Usuario:
             <input v-model="verificar.id_usuario" type="text" required>
         </label>
-        <label v-if="!verificarCantidad" class="respuesta">Stock:
+        <label class="respuesta">Stock:
             <input v-model="verificar.cantidad" type="number" required>
         </label>
-        <button type="submit" class="boton">Comprar</button>
+        <button type="submit" class="boton">Agregar</button>
         <RouterLink v-if="!verificarUsuario" to="/registroUsuario">
             <button type="submit" class="boton">No tengo ID</button>
         </RouterLink>

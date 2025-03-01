@@ -12,15 +12,32 @@ export default {
             descripcion: "",
             precio: 0,
             stock: 0,
+            categotia:"",
             
         });
-        const message = ref('');
+        const fileInput =  ref(null);
+        const onFilechange = (event) =>{
+            fileInput.value = event.target.files[0];
+        };
 
         const insertarProducto = async () => {
+            const formData = new FormData();
+            formData.append("id_producto", producto.value.id_producto);
+            formData.append("nombre", producto.value.nombre);
+            formData.append("descripcion", producto.value.descripcion);
+            formData.append("precio", producto.value.precio);
+            formData.append("stock", producto.value.stock);
+            formData.append("categotia", producto.value.categotia);
+            if (fileInput.value){
+                formData.append("file", fileInput.value);
+            }
             try {
-                const respuesta = await axios.post('http://127.0.0.1:8000/insertar/producto', producto.value);
-                message.value = respuesta.data.message;
-                message.value = Swal.fire({
+                const respuesta = await axios.post('http://127.0.0.1:8000/insertar/producto', formData,{
+                    headers:{
+                        'Content-Type': 'multipart/form-data'
+                    },
+                });
+                Swal.fire({
                     icon: "success",
                     title:"Producto agregado"
                 })
@@ -29,12 +46,12 @@ export default {
                 let longitudDescripcion = producto.value.descripcion.length
                 
                 if (longitudDescripcion > 20){
-                    message.value = Swal.fire({
+                    Swal.fire({
                     icon:"warning",
                     title:"Descripcion muy larga", 
                     text: error
                 })
-                }else{message.value = Swal.fire({
+                }else{ Swal.fire({
                     icon:"error",
                     title:"ID ya esta utilizado", 
                     text: error
@@ -49,7 +66,8 @@ export default {
         return {
             producto,
             insertarProducto,
-            router
+            router,
+            onFilechange
         };
     }
 };
@@ -77,6 +95,17 @@ export default {
         <label class="respuesta">Stock:
             <input v-model="producto.stock" type="number" required>
         </label>
+        <label class="respuesta">Categoría:
+            <select v-model="producto.categotia" required>
+                <option value="juguetes">Juguetes</option>
+                <option value="accesorios">Accesorios</option>
+            </select>
+        </label>
+
+        <label class="respuesta">Imagen:
+            <input type="file" @change="onFilechange"/>
+        </label>
+
         <button type="submit" class="boton">Registrar</button>
     </form>
     
