@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import GraficoPastel from "@/components/GraficoPastel.vue"; 
+import '@fortawesome/fontawesome-free/css/all.css';
 
 
 export default {
@@ -17,20 +18,46 @@ export default {
     const emailUsuario = memoria?.email
     const router = useRouter();
     const data = ref([]);
-    //const pedido = ref([]);
+    
+
+    
+    const pedido = ref({});
+    
+    
+    const facturapedido = async () => {
+    try {
+    const respuesta = await axios.get("http://127.0.0.1:8000/compra");
+    const compras = respuesta.data;
+
+    // Agrupar por id_usuario
+    const comprasAgrupadas = compras.reduce((acc, compra) => {
+          if (!acc[compra.id_usuario]) {
+            acc[compra.id_usuario] = [];
+          }
+          acc[compra.id_usuario].push(compra);
+          return acc;
+        }, {});
+
+        pedido.value = comprasAgrupadas; // Asignamos el objeto agrupado a la variable reactiva
+      } catch (error) {
+        console.log("No se cargaron los datos", error);
+      }
+    };
+
 
     // apache
-    const pedido = ref([]);
+
+    const grafico = ref([]);
     const productosVendidos = ref([]);
 
-    const facturapedido = async () => {
+    const datosGrafico = async () => {
       try {
-        const respuesta = await axios.get("http://127.0.0.1:8000/compra");
-        pedido.value = respuesta.data;
+        const respuesta = await axios.get("http://127.0.0.1:8000/compra_grafico_ver");
+        grafico.value = respuesta.data;
 
         // Procesar productos más vendidos
         const contador = {};
-        pedido.value.forEach(p => {
+        grafico.value.forEach(p => {
           if (contador[p.id_producto]) {
             contador[p.id_producto].cantidad += p.cantidad;
           } else {
@@ -50,27 +77,41 @@ export default {
     
 
     // apache
-
-    const decodificado = JSON.parse(localStorage.getItem('tipo_categoria'));
-    const categoria = decodificado?.categoria; 
-    console.log("categoria", categoria);
+    
+    function enviarMensajeWhatsapp() {
+      const numero = "573508381030";
+      const mensaje =encodeURIComponent("Hola, quiero ver el catalogo");
+      const url = `https://wa.me/${numero}?text=${mensaje}`;
+      window.open(url, "_blank");
+    }
 
     
-  
+
+
+    // remover
+
+    const categorias = ref(['Todos', 'Alimentos', 'accesorios', 'juguetes']);
+    const categoriaSeleccionada = ref('Todos');
+
+    const seleccionarCategoria = (categoria) => {
+      categoriaSeleccionada.value = categoria;
+      consultaProducto();
+    };
+
     const consultaProducto = async () => {
       try {
         const respuesta = await axios.get('http://127.0.0.1:8000/consultarProductos');
-        if (!categoria || categoria === 'todos') {
+        if (categoriaSeleccionada.value === 'Todos') {
           data.value = respuesta.data;
         } else {
-            data.value = respuesta.data.filter(item => item.categotia === categoria);
+          data.value = respuesta.data.filter(item => item.categotia === categoriaSeleccionada.value);
         }
-
-        
       } catch (error) {
         console.log("No se cargaron los datos", error);
       }
     };
+
+    // remover
 
     const getImagenUrl = (path) =>{
       return `http://127.0.0.1:8000/${path}`;
@@ -79,7 +120,10 @@ export default {
 
     onMounted(() =>  {
       consultaProducto(),
-      facturapedido()
+      facturapedido(),
+      datosGrafico()
+      
+      
       }
     );
 
@@ -104,6 +148,9 @@ export default {
     const onCompletado = (id_compra, id_usuario)=>{
       router.push({path:'/completado', query : {id_compra:id_compra, id_usuario:id_usuario}})
     }
+    const onAgregarCarrito = (productoId) =>{
+      router.push({ path: '/agregarCarrito', query: { productoId: productoId } });
+    }
 
     return {
       data,
@@ -117,6 +164,10 @@ export default {
       onCompletado,
       nombreUsuario,
       emailUsuario,
+      enviarMensajeWhatsapp,
+      categorias,
+      seleccionarCategoria,
+      onAgregarCarrito
       
     };
   }
@@ -162,39 +213,66 @@ export default {
     
     <h2>¡Bienvenido {{nombreUsuario}}!</h2>
 
-    <section class="section-products" id="products">
-      <h2>Ventas</h2>
-      <div class="contenedor-sobre-nosotros">
-        
-        
-        <div class="cards">
-          <ul>
-            <li v-for="i in pedido" :key="i" class="card">
-              <b class="pedidoespacios">ID Compra: {{ i.id_compra }}</b>
-              <b class="pedidoespacios">ID Usuario:{{ i.id_usuario }}</b>       
-              <b class="pedidoespacios">ID Producto:{{ i.id_producto }}</b>
-              <b class="pedidoespacios">Cantida:{{ i.cantidad }}</b>
-              <b class="pedidoespacios">Total:{{ i.total }}</b><br>
-              
-                <button  class="btn" @click="onCompletado(i.id_compra, i.id_usuario)" >Hacer pedido</button>
-              
-              
-              
-            </li>
-          </ul>
-      </div>
-      </div>
-    </section>
+    <div class="centro_control">
+        <div class="left-section">
+            
+            <div class="pie_estadistico">
+                <GraficoPastel :productosVendidos="productosVendidos" />
+            </div>
+        </div>
+        <div class="right-section">
+          <h2>Ventas</h2>
+          <div class="cards">
+            <ul>
+              <li v-for="(compras, usuarioId) in pedido" :key="usuarioId">
+                <h3>--------------------------------------------------------------------------------------------------------------------------------------------------</h3>
+                <p><h3>ID Usuario: {{ usuarioId }}</h3></p>
+                
+                <ul>
+                  <li class="card" v-for="compra in compras" :key="compra.id_compra">
+                    <b>ID Compra: {{ compra.id_compra }}</b><br>
+                    <b>ID Producto: {{ compra.id_producto }}</b><br>
+                    <b>Cantidad: {{ compra.cantidad }}</b><br>
+                    <b>Total: {{ compra.total }}</b><br>
+                    <button class="btn" @click="onCompletado(compra.id_compra, compra.id_usuario)">Hacer pedido</button>
+                  </li>
+                </ul>
+                <p><h3>Total de compra: <b>${{ compras.reduce((sum, compra) => sum + compra.total, 0).toFixed(2) }}</b></h3> </p>
+                <h3>--------------------------------------------------------------------------------------------------------------------------------------------------</h3>
+              </li>
+            </ul>
+          </div>
+        </div>
+    </div>
 
-    <div class="pie_estadistico">
+    <div class="carritocompra">
+      <div class="carritoemoti">
+        <router-link to="/carritoCompra">🛒</router-link>
+      </div>
+    </div>
 
-      <GraficoPastel :productosVendidos="productosVendidos" />
+    <div class="whasapp">
+      <button @click="enviarMensajeWhatsapp" class="whatsapp-btn">
+        <i class="fab fa-whatsapp"></i> 
+      </button>
+    </div>
+
+    
+
+
+    <div class="categorias">
+      <button 
+        v-for="categoria in categorias" 
+        :key="categoria" 
+        @click="seleccionarCategoria(categoria)"
+        :class="{ activo: categoria === categoriaSeleccionada }">
+        {{ categoria }}
+      </button>
     </div>
 
 
-    
     <section class="section-products" id="products">
-      <h2>Nuestro Producto</h2>
+      
       <div class="contenedor-sobre-nosotros">
         
         
@@ -215,6 +293,7 @@ export default {
               <strong>Precio:</strong> ${{ producto.precio.toFixed(2) }}<br>
               <strong>Stock:</strong> {{ producto.stock }}<br>
               <button class="btn" @click="onComprar(producto.id_producto)">Compra</button>
+              <button class="btn" @click="onAgregarCarrito(producto.id_producto)">🛒</button>
             </div>
           </li>
         </ul>
@@ -290,6 +369,135 @@ export default {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+.carritocompra {
+  position: fixed;
+  bottom: 90px; 
+  right: 20px;
+  z-index: 1000;
+}
+
+.carritoemoti a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background-color: #ff6600; /* Color similar a WhatsApp */
+  color: white;
+  font-size: 30px;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background 0.3s ease-in-out, transform 0.2s;
+  text-decoration: none; /* Elimina subrayado */
+}
+
+.carritoemoti a:hover {
+  background-color: #d65300;
+  transform: scale(1.1);
+}
+
+.categorias {
+  display: flex;
+  justify-content: center; /* Centrar los botones */
+  gap: 15px; /* Espacio entre botones */
+  margin: 20px 0;
+}
+
+.categorias button {
+  padding: 15px 25px; /* Tamaño más grande */
+  font-size: 18px; /* Texto más grande */
+  border: none;
+  background-color: orange; /* Botón color naranja */
+  color: white; /* Texto blanco */
+  cursor: pointer;
+  border-radius: 8px; /* Bordes redondeados */
+  transition: background 0.3s, transform 0.2s;
+}
+
+.categorias button.activo {
+  background-color: #d68600; /* Un naranja más oscuro para el botón activo */
+}
+
+.categorias button:hover {
+  background-color: red; /* Cambio a rojo al pasar el mouse */
+  transform: scale(1.1); /* Efecto de agrandamiento */
+}
+
+
+.centro_control {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 80%;
+            margin: 20px auto;
+            padding: 20px;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            background: #f9f9f9;
+}
+.left-section {
+    width: 35%;
+    padding: 10px;
+    text-align: center;
+}
+.right-section {
+    width: 60%;
+    padding: 10px;
+}
+.cards ul {
+    list-style: none;
+}
+.card {
+    background: #fff;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+.btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+.btn:hover {
+    background: #0056b3;
+}
+
+
+
+.whasapp {
+  position: fixed;
+  bottom: 20px; 
+  right: 20px;  
+  z-index: 1000;
+}
+
+.whatsapp-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background-color: #25D366;
+  color: white;
+  font-size: 30px;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background 0.3s ease-in-out, transform 0.2s;
+}
+
+.whatsapp-btn:hover {
+  background-color: #1ebe5d;
+  transform: scale(1.1);
 }
 .pie_estadistico{
   height: 500px;
