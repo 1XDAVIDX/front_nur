@@ -18,7 +18,8 @@ export default {
 
         const insertarUsuario = async () => {
             try {
-                const respuesta = await axios.post('http://127.0.0.1:8000/insertar/usuario', usuario.value);
+                //const respuesta = await axios.post('http://127.0.0.1:8000/insertar/usuario', usuario.value);
+                const respuesta = await axios.post('http://192.168.80.22:8000/insertar/usuario', usuario.value);
                 message.value = respuesta.data.message;
                 message.value = Swal.fire({
                     icon:'success',

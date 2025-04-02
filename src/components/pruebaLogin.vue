@@ -26,7 +26,8 @@ export default {
         const insertarlogin = async () => {
             try {
                 // Realiza la solicitud POST
-                const respuesta = await axios.post('http://127.0.0.1:8000/login', login.value);
+                //const respuesta = await axios.post('http://127.0.0.1:8000/login', login.value);
+                const respuesta = await axios.post('http://192.168.80.22:8000/login', login.value);
                 
                 // Guarda el token en LocalStorage
                 const token = respuesta.data.access_token;
