@@ -20,7 +20,7 @@ export default {
       const opciones = {
         title: { text: "Productos más vendidos", left: "center",textStyle:{ color : "red", fontSize:25} },
         tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
-        legend: { orient: "vertical", left: "right",top: "10%", textStyle: { fontSize: 16, fontWeight: "bold" } },
+        legend: { orient: "vertical", left: "right",top: "5%", textStyle: { fontSize: 14, fontWeight: "bold" } },
         series: [
           {
             name: "Ventas",

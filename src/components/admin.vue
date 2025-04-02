@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import GraficoPastel from "@/components/GraficoPastel.vue"; 
+import Swal from 'sweetalert2';
 import '@fortawesome/fontawesome-free/css/all.css';
 
 
@@ -11,19 +12,70 @@ export default {
   components: { 
     GraficoPastel  
   },
+  data(){
+    return {
+        menuAbierto: false,
+        modalAbierto: false,
+        //modalPedidoAbierto: false,
+        //pedidoSeleccionado: null,
+        //factura: {},
+      };
+  },
+  methods: {
+    
+      irACasa(producto) {
+        this.$router.push({ path: '/casa', query: { id: producto.id_producto } });
+      },
+      toggleMenu() {
+        this.menuAbierto = !this.menuAbierto;
+      },
+      abrirModal() {
+      this.modalAbierto = true;
+      },
+      cerrarModal() {
+        this.modalAbierto = false;
+      },/*
+      abrirModalPedido(pedido) {
+        this.pedidoSeleccionado = pedido;
+        this.modalPedidoAbierto = true;
+      },
+      cerrarModalPedido() {
+        this.modalPedidoAbierto = false;
+        this.pedidoSeleccionado = null;
+      },
+      async onCompletado(id_compra, id_usuario) {
+        try {
+          const respuesta = await axios.delete(`http://127.0.0.1:8000/completada/${id_compra}/${id_usuario}`);
+          this.factura = respuesta.data;
+          this.abrirModalPedido(this.factura);
+          Swal.fire({
+            icon: "success",
+            title: "Pedido Hecho",
+            text: `Producto: ${this.factura.id_producto} Cantidad: ${this.factura.cantidad} Total: ${this.factura.total}\nID compra: ${this.factura.id_compra} ID Usuario: ${this.factura.id_usuario} Nombre: ${this.factura.nombre} Correo: ${this.factura.email}`
+          });
+        } catch (error) {
+          Swal.fire({
+            icon: "error",
+            title: "Datos no son correctos"
+          });
+        }
+      },*/
+    },
   setup() {
     
     const memoria = JSON.parse(localStorage.getItem('access_token'))
+    const idlocalestore = memoria?.id_usuario;
     const nombreUsuario = memoria?.nombre
     const emailUsuario = memoria?.email
     const router = useRouter();
     const data = ref([]);
     
+    
 
     
+    // Consultar productos comprados de la base de datos
     const pedido = ref({});
-    
-    
+  
     const facturapedido = async () => {
     try {
     const respuesta = await axios.get("http://127.0.0.1:8000/compra");
@@ -44,8 +96,128 @@ export default {
       }
     };
 
+    // despachar pedido
+    const factura = ref({})
 
-    // apache
+    const pedidoHecho = async (id_compra, id_usuario) =>{
+            try {
+              const respuesta =await axios.delete(`http://127.0.0.1:8000/completada/${id_compra}/${id_usuario}`);
+              factura.value = respuesta.data
+              console.log("ok",factura.value)
+              Swal.fire({
+                  icon:"success",
+                  title:"Pedido Hecho",
+                  text:`Producto: ${factura.value.id_producto} Cantidad:${factura.value.cantidad} Total:${factura.value.total}\nID compra:${factura.value.id_compra} ID Usuario:${factura.value.id_usuario} Nombre:${factura.value.nombre} Correo:${factura.value.email}`
+              }).then(() =>{
+                router.go(0);
+              })
+              
+
+            } catch (error) {
+                Swal.fire({
+                    icon:"error",
+                    title:"Datos no son correctos"
+                })
+            }
+          
+
+    }
+
+
+    // despachar pedido multiple
+    const facturaultiple = ref({})
+
+    const pedidoHechoMultiple = async (id_usuario) => {
+      try {
+        const respuesta = await axios.delete(`http://127.0.0.1:8000/completadas/${id_usuario}`);
+        facturaultiple.value = respuesta.data;
+    
+        // Actualizar dinámicamente la lista de compras
+        delete pedido.value[id_usuario];
+    
+        if (facturaultiple.value && facturaultiple.value.compras_completadas) {
+           Swal.fire({
+             icon: "success",
+             title: "Pedido Hecho",
+             html: `
+               <b>Productos Completados:</b> ${facturaultiple.value.compras_completadas
+                 .map(c => `${c.nombre_producto} (ID: ${c.id_producto})`)
+                 .join(", ")}<br>
+               <b>Total:</b> $${facturaultiple.value.compras_completadas
+                 .reduce((sum, c) => sum + c.total, 0)
+                 .toLocaleString()}
+             `
+           });
+        } else {
+           console.error("La respuesta no contiene compras_completadas:", facturaultiple.value);
+        }
+      } catch (error) {
+        Swal.fire({
+          icon: "error",
+          title: "Datos no son correctos",
+          text: error.response?.data?.detail || "Error desconocido"
+        });
+      }
+    };
+    
+    const carritoCompra = async (producto)=>{
+            
+      try {
+              const carritoCompra = ref({
+                id_producto: producto.id_producto,
+                id_usuario: idlocalestore,
+                cantidad: producto.cantidadProducto,
+              })
+                const respuesta =await axios.post("http://127.0.0.1:8000/carrito", carritoCompra.value);
+                Swal.fire({
+                    icon:"success",
+                   
+                    
+                })
+      } catch (error) {
+                Swal.fire({
+                    icon:"error",
+                    text:"Error al comprar"
+        })
+      }
+    }
+
+
+    // comprar producto 
+    
+
+    const comprar = async (producto) => {
+      try {
+        const compraProducto = {
+          id_producto: producto.id_producto,
+          id_usuario: idlocalestore,
+          cantidad: producto.cantidadProducto,
+        };
+
+        const respuesta = await axios.post("http://127.0.0.1:8000/compra", compraProducto);
+        Swal.fire({
+          icon: "success",
+          title: "Compra Exitosa",
+          html: `
+            <b>ID Compra:</b> ${respuesta.data.id_compra} <br>
+            <b>ID Producto:</b> ${respuesta.data.id_producto} <br>
+            <b>Nombre Producto:</b> ${respuesta.data.nombre_producto} <br>
+            <b>Descripción:</b> ${respuesta.data.descripcion} <br>
+            <b>Precio:</b> ${respuesta.data.precio} <br>
+            <b>Stock:</b> ${respuesta.data.stock} <br>
+            <b>Total:</b> ${respuesta.data.total}
+          `,
+        }).then(()=> { router.go(0);});
+      } catch (error) {
+        Swal.fire({
+          icon: "error",
+          text: "Error al comprar"
+        });
+      }
+    };
+
+
+    // apache pie grafico
 
     const grafico = ref([]);
     const productosVendidos = ref([]);
@@ -76,7 +248,7 @@ export default {
 
     
 
-    // apache
+    // boton de whatsapp
     
     function enviarMensajeWhatsapp() {
       const numero = "573508381030";
@@ -85,11 +257,29 @@ export default {
       window.open(url, "_blank");
     }
 
+    // modal usuario
+
+    const modalUsuarioAbierto = ref(false); // Controla si el modal está abierto
+    const datosUsuario = ref({}); // Almacena los datos del usuario
+
+    const abrirModalUsuario = () => {
+      datosUsuario.value = {
+        nombre: nombreUsuario,
+        email: emailUsuario,
+        id: idlocalestore,
+      };
+      modalUsuarioAbierto.value = true;
+    };
+
+    const cerrarModalUsuario = () => {
+      modalUsuarioAbierto.value = false;
+    };
+
     
 
 
-    // remover
-
+    
+    // categorias
     const categorias = ref(['Todos', 'Alimentos', 'accesorios', 'juguetes']);
     const categoriaSeleccionada = ref('Todos');
 
@@ -101,17 +291,19 @@ export default {
     const consultaProducto = async () => {
       try {
         const respuesta = await axios.get('http://127.0.0.1:8000/consultarProductos');
+        
         if (categoriaSeleccionada.value === 'Todos') {
-          data.value = respuesta.data;
+          data.value = respuesta.data.map(item => ({ ...item, cantidadProducto: 1 }));
+          
         } else {
-          data.value = respuesta.data.filter(item => item.categotia === categoriaSeleccionada.value);
+          data.value = respuesta.data.filter(item => item.categotia === categoriaSeleccionada.value).map(item => ({ ...item, cantidadProducto: 1 }));
         }
       } catch (error) {
         console.log("No se cargaron los datos", error);
       }
     };
 
-    // remover
+    
 
     const getImagenUrl = (path) =>{
       return `http://127.0.0.1:8000/${path}`;
@@ -145,11 +337,18 @@ export default {
     const onModificar = (productoId)=>{
       router.push({path:'/modificarProducto', query: {productoId: productoId}})
     }
-    const onCompletado = (id_compra, id_usuario)=>{
-      router.push({path:'/completado', query : {id_compra:id_compra, id_usuario:id_usuario}})
-    }
     const onAgregarCarrito = (productoId) =>{
       router.push({ path: '/agregarCarrito', query: { productoId: productoId } });
+    }
+
+    //const cantidadCompra = ref(1)
+    const incrementarCantidad = ( producto ) =>{
+      producto.cantidadProducto++;
+    }
+    const decrementarCantidad= ( producto ) =>{
+      if(producto.cantidadProducto > 1){
+        producto.cantidadProducto--;
+      }
     }
 
     return {
@@ -158,16 +357,37 @@ export default {
       getImagenUrl,
       pedido,
       productosVendidos,
-      onComprar,
+      //onComprar,
       onEliminar,
       onModificar,
-      onCompletado,
+      
       nombreUsuario,
       emailUsuario,
+      idlocalestore,
+      modalUsuarioAbierto,
+      datosUsuario,
+      abrirModalUsuario,
+      cerrarModalUsuario,
       enviarMensajeWhatsapp,
       categorias,
       seleccionarCategoria,
-      onAgregarCarrito
+      //onAgregarCarrito,
+
+      pedidoHecho,
+
+      incrementarCantidad,
+      decrementarCantidad,
+      //cantidadCompra
+
+      //compraProducto,
+      comprar,
+      carritoCompra,
+
+      pedidoHechoMultiple,
+
+      
+      
+      
       
     };
   }
@@ -200,18 +420,115 @@ export default {
     <!-- Barra de navegación secundaria -->
     <nav class="navbar">
       <ul>
-        <li><router-link to="/categoria">Categoria</router-link></li>
-        <li><router-link to="/inventario">Producto Despachados</router-link></li>
-        <li><router-link to="/modificarProducto">Modificar Producto</router-link></li>
-        <li><router-link to="/eliminarProducto">Eliminar Producto</router-link></li>
+        
         <li><router-link to="/registroUsuario">Crear cuenta</router-link></li>
         <li><router-link to="/pruebaLogin">Ingresar</router-link></li>
-        <li><router-link to="/registroProducto">Registrar Producto</router-link></li>
-        <li class="infocliente">{{ nombreUsuario }}<br> {{ emailUsuario }}</li>
+        
+
+        <div>
+          <span id="hamburguesa" @click="toggleMenu" class="far fa-user-circle"> </span>
+          <nav :class="['menuHamburguesa', { openHamburguesa: menuAbierto }]">
+            <span id="cerrarHamburguesa" @click="toggleMenu">&#128938;</span>
+            <ul >
+              <li id="libienvenido">¡Bienvenido!</li>
+              <li class="infocliente">{{ nombreUsuario }}</li>
+
+
+              <li id="lilinea">-----------------------------------------</li>
+              <li class="lihamburguesa"><router-link to="/registroProducto">Registrar Producto</router-link></li>
+              
+              <li class="lihamburguesa"><router-link to="/modificarProducto">Modificar Producto</router-link></li>
+              <li class="lihamburguesa"><router-link to="/eliminarProducto">Eliminar Producto</router-link></li>
+              <li class="lihamburguesa"><router-link to="/inventario">Producto Despachados</router-link></li>
+              <li class="lihamburguesa"><router-link to="/registroUsuario">Crear cuenta</router-link></li>
+              <li class="lihamburguesa"><router-link to="/pruebaLogin">Ingresar Usuario</router-link></li>
+
+              <li class="menuInfoCliente" @click="abrirModalUsuario">
+                USUARIO
+              </li>
+             
+             
+              <li id="lilinea">-----------------------------------------</li>
+
+              <!--<li class="infocliente">{{ nombreUsuario }}<br> {{ emailUsuario }}</li>-->
+            </ul>
+          </nav>
+        </div>
+
+
       </ul>
     </nav>
+
+    <section class="modal" v-if="modalUsuarioAbierto" aria-hidden="!modalUsuarioAbierto">
+      <div class="modal__container" role="dialog" aria-labelledby="modalUsuarioTitle">
+        <h2 id="modalUsuarioTitle">Editar Información del Usuario</h2>
+        <form class="modal__form">
+          <div class="form-group">
+            <label for="idUsuario">ID:</label>
+            <input
+              type="text"
+              id="idUsuario"
+              v-model="datosUsuario.id"
+              disabled
+            />
+          </div>
+          <div class="form-group">
+            <label for="nombreUsuario">Nombre:</label>
+            <input
+              type="text"
+              id="nombreUsuario"
+              v-model="datosUsuario.nombre"
+              placeholder="Ingresa tu nombre"
+            />
+          </div>
+          <div class="form-group">
+            <label for="emailUsuario">Email:</label>
+            <input
+              type="email"
+              id="emailUsuario"
+              v-model="datosUsuario.email"
+              placeholder="Ingresa tu email"
+            />
+          </div>
+          <div class="form-group">
+            <label for="emailUsuario">Dirección:</label>
+            <input
+              type="text"
+              
+              placeholder="Ingresa tu Dirección"
+            />
+          </div>
+          <div class="form-group">
+            <label for="Telefono">Telefono:</label>
+            <input
+                type="text"
+                id="Telefono"
+                placeholder="Ingresa tu número "
+                maxlength="20"
+              />
+          </div>
+          
+          <div class="form-group">
+            <label for="tarjetaUsuario">Tarjeta:</label>
+            <input
+                type="text"
+                id="tarjetaUsuario"
+                placeholder="Ingresa tu número de tarjeta"
+                maxlength="16"
+              />
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn btn-save" @click="guardarCambios">Guardar Cambios</button>
+            <button type="button" class="btn btn-cancel" @click.prevent="cerrarModalUsuario">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </section>
     
     <h2>¡Bienvenido {{nombreUsuario}}!</h2>
+
+    
 
     <div class="centro_control">
         <div class="left-section">
@@ -220,6 +537,19 @@ export default {
                 <GraficoPastel :productosVendidos="productosVendidos" />
             </div>
         </div>
+        
+    </div>
+
+
+
+
+
+
+
+
+
+    <div class="centro_control">
+        
         <div class="right-section">
           <h2>Ventas</h2>
           <div class="cards">
@@ -231,19 +561,35 @@ export default {
                 <ul>
                   <li class="card" v-for="compra in compras" :key="compra.id_compra">
                     <b>ID Compra: {{ compra.id_compra }}</b><br>
+                    <b>ID usuario: {{ compra.id_usuario }}</b><br>
                     <b>ID Producto: {{ compra.id_producto }}</b><br>
                     <b>Cantidad: {{ compra.cantidad }}</b><br>
-                    <b>Total: {{ compra.total }}</b><br>
-                    <button class="btn" @click="onCompletado(compra.id_compra, compra.id_usuario)">Hacer pedido</button>
+                    <b>Total: {{ compra.total.toLocaleString() }}</b><br>
+                    <button class="btn" @click="pedidoHecho(compra.id_compra, compra.id_usuario)">Hacer pedido</button>
                   </li>
                 </ul>
-                <p><h3>Total de compra: <b>${{ compras.reduce((sum, compra) => sum + compra.total, 0).toFixed(2) }}</b></h3> </p>
+                <p><h3>Total de compra: <b>${{ compras.reduce((sum, compra) => sum + compra.total, 0).toLocaleString() }}</b></h3> </p>
+                <button class="btn-compra-multiple" @click="pedidoHechoMultiple(usuarioId)">Compra Múltiple</button>
                 <h3>--------------------------------------------------------------------------------------------------------------------------------------------------</h3>
               </li>
             </ul>
           </div>
         </div>
     </div>
+
+    <!-- <section class="modal" v-if="modalPedidoAbierto" aria-hidden="!modalPedidoAbierto">
+      <div class="modal__container" role="dialog" aria-labelledby="modalPedidoTitle">
+        <h2 id="modalPedidoTitle">Detalles del Pedido</h2>
+        <div v-if="pedidoSeleccionado">
+          <p><strong>ID Compra:</strong> {{ pedidoSeleccionado.id_compra }}</p>
+          <p><strong>ID Producto:</strong> {{ pedidoSeleccionado.id_producto }}</p>
+          <p><strong>Cantidad:</strong> {{ pedidoSeleccionado.cantidad }}</p>
+          <p><strong>Total:</strong> ${{ pedidoSeleccionado.total.toFixed(2) }}</p>
+        </div>
+        <button class="btn" @click="cerrarModalPedido">Cerrar</button>
+      </div>
+    </section> -->
+    
 
     <div class="carritocompra">
       <div class="carritoemoti">
@@ -271,35 +617,39 @@ export default {
     </div>
 
 
-    <section class="section-products" id="products">
-      
-      <div class="contenedor-sobre-nosotros">
-        
-        
-        <div class="cards">
-        <ul>
-          <li v-for="producto in data" :key="producto.id_producto" class="card">
-            <div class="card-content">
-              
-              <button class="btn" @click="onModificar(producto.id_producto)">✏️</button>
-            
-              <button class="btn" @click="onEliminar(producto.id_producto)">🗑️</button>
-              <div class="imagen">
-                <img :src="getImagenUrl(producto.imagen)" alt="Imagen" >
-              </div>
-              <strong>ID:</strong> {{ producto.id_producto }}<br>
-              <strong>Nombre:</strong> {{ producto.nombre }}<br>
-              <strong>Descripción:</strong> {{ producto.descripcion }}<br>
-              <strong>Precio:</strong> ${{ producto.precio.toFixed(2) }}<br>
-              <strong>Stock:</strong> {{ producto.stock }}<br>
-              <button class="btn" @click="onComprar(producto.id_producto)">Compra</button>
-              <button class="btn" @click="onAgregarCarrito(producto.id_producto)">🛒</button>
-            </div>
-          </li>
-        </ul>
-      </div>
-      </div>
-    </section>
+    <div class="box">
+      <!-- ...existing code... -->
+      <section class="section-products" id="products">
+        <div class="contenedor-sobre-nosotros">
+          <div class="cards">
+            <ul>
+              <li v-for="producto in data" :key="producto.id_producto" class="card" @click="irACasa(producto)">
+                <div class="card-content">
+                  <button class="btn" @click.stop="onModificar(producto.id_producto)">✏️</button>
+                  <button class="btn" @click.stop="onEliminar(producto.id_producto)">🗑️</button>
+                  <div class="imagen">
+                    <img :src="getImagenUrl(producto.imagen)" alt="Imagen">
+                  </div>
+                  <strong>ID:</strong> {{ producto.id_producto }}<br>
+                  <strong>Nombre:</strong> {{ producto.nombre }}<br>
+                  <strong>Descripción:</strong> {{ producto.descripcion }}<br>
+                  <strong>Precio:</strong> ${{ producto.precio.toFixed(2) }}<br>
+                  <strong>Stock:</strong> {{ producto.stock }}<br>
+                  <div class="stock-control">
+                    <button type="button" @click.stop="decrementarCantidad(producto)">-</button>
+                    <input v-model="producto.cantidadProducto" type="number" min="1" step="1" required>
+                    <button type="button" @click.stop="incrementarCantidad(producto)">+</button>
+                  </div>
+                  <button class="btn" @click.stop="comprar(producto)">Compra</button>
+                  <button class="btn" @click.stop="carritoCompra(producto)">🛒</button>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+      <!-- ...existing code... -->
+    </div>
     
 
     <!-- Sección de comentarios -->
@@ -371,10 +721,272 @@ export default {
   padding: 0;
 }
 
+.card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+
+.menuInfoCliente {
+  cursor: pointer; 
+  transition: background-color 0.3s ease, color 0.3s ease; 
+}
+
+.menuInfoCliente:hover {
+  color: yellow; 
+  
+}
+/* Botón de Compra Múltiple */
+.btn-compra-multiple {
+  background-color: #28a745; 
+  color: white;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-compra-multiple:hover {
+  background-color: #218838; 
+  transform: scale(1.05); /* Efecto de agrandamiento */
+}
+
+.btn-compra-multiple:active {
+  background-color: #1e7e34; 
+  transform: scale(0.95); /* Efecto de reducción al hacer clic */
+}
+
+.btn-compra-multiple:focus {
+  outline: none;
+  box-shadow: 0px 0px 8px rgba(40, 167, 69, 0.8); /* Resaltado al enfocar */
+}
+
+/* Modal de usuario */
+.modal__container {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+  text-align: left;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Alinea los elementos al inicio */
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #333;
+  text-align: left; /* Asegura que el texto esté alineado a la izquierda */
+}
+
+.form-group input {
+  width: 100%; /* Asegura que el input ocupe todo el ancho disponible */
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.form-group input:focus {
+  border-color: #007bff;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.btn-save {
+  background-color: #28a745;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.btn-save:hover {
+  background-color: #218838;
+}
+
+.btn-cancel {
+  background-color: #dc3545;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.btn-cancel:hover {
+  background-color: #c82333;
+}
+
+/* Para navegadores Webkit (Chrome, Safari, Edge) quitar las flechas por defecto de number */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.stock-control button {
+  background-color: #ddab08; /* Color amarillo */
+  color: white;
+  border: none;
+  padding: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background-color 0.3s;
+}
+
+.stock-control button:hover {
+  background-color: #dd0808; /* Color rojo al pasar el mouse */
+}
+
+/* Input de cantidad */
+.stock-control input[type="number"] {
+  width: 60px;
+  text-align: center;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 10px;
+  font-size: 16px;
+  margin: 0 5px;
+}
+
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal__container {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+}
+
+.modal__contenido {
+  margin-bottom: 20px;
+}
+
+.modal_close {
+  cursor: pointer;
+  color: #007bff;
+  text-decoration: underline;
+}
+
+#libienvenido{
+  font-size: 40px;
+}
+#hamburguesa{
+    color: whitesmoke;
+    position: absolute;
+    right: 20px;
+  }
+#hamburguesa, #cerrarHamburguesa {
+    font-size: 3rem;
+    font-weight: bolder;
+    cursor: pointer;
+    user-select: none;
+    
+}
+  
+.menuHamburguesa {
+    background-color:  #333;
+    width: 20%;
+    position: fixed;
+    top: 0;
+    right: -100%;
+    bottom: 0;
+    color: white;
+    text-align: right;
+    padding: 20px;
+    transition: left 0.3s ease-in-out;
+}
+  
+.menuHamburguesa ul {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  
+}
+
+.menuHamburguesa .lihamburguesa {
+  list-style: none;
+  width: 100%;
+  text-align: center;
+  padding: 10px 0;
+  color: white; /* Color blanco por defecto */
+  font-size: 1.2em; /* Tamaño de fuente */
+  transition: color 0.3s ease; /* Transición suave para el color del texto */
+}
+
+.menuHamburguesa .lihamburguesa:hover {
+  color: #FFFF00;
+}
+
+.menuHamburguesa .lihamburguesa a {
+  color: inherit; 
+  text-decoration: none; 
+  display: block; 
+  padding: 10px; 
+  transition: color 0.3s ease; 
+}
+
+.menuHamburguesa .lihamburguesa a:hover {
+  color: #FFFF00; 
+}
+
+
+
+  
+.openHamburguesa {
+    right: 0;
+}
+
 .carritocompra {
   position: fixed;
-  bottom: 90px; 
-  right: 20px;
+  top: 800px;
+  bottom: 20px; 
+  right: 30px;
   z-index: 1000;
 }
 
@@ -429,45 +1041,26 @@ export default {
 
 
 .centro_control {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            width: 80%;
-            margin: 20px auto;
-            padding: 20px;
-            border: 2px solid #ccc;
-            border-radius: 10px;
-            background: #f9f9f9;
+  display: flex;
+  justify-content: center; /* Centra el contenido horizontalmente */
+  align-items: flex-start;
+  width: 100%; /* Ocupa el 100% del contenedor padre */
+  margin: 20px auto;
+  padding: 20px;
+  border: 2px solid #ccc;
+  border-radius: 10px;
+  background: #f9f9f9;
 }
-.left-section {
-    width: 35%;
-    padding: 10px;
-    text-align: center;
+
+.left-section, .right-section  {
+  width: 100%; /* Ocupa el 100% del contenedor padre */
+  padding: 10px;
+  text-align: center;
 }
-.right-section {
-    width: 60%;
-    padding: 10px;
-}
-.cards ul {
-    list-style: none;
-}
-.card {
-    background: #fff;
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-.btn {
-    background: #007bff;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    cursor: pointer;
-    border-radius: 5px;
-}
-.btn:hover {
-    background: #0056b3;
+.pie_estadistico {
+  height: 500px;
+  width: 500px;
+  margin: 0 auto; /* Centra el pie_estadistico */
 }
 
 
@@ -505,8 +1098,8 @@ export default {
   
 }
 .infocliente{
-  color: red;
-  font-size: 17px;
+  color: white;
+  font-size: 25px;
 }
 
 body {
@@ -565,16 +1158,18 @@ header {
   position: sticky;
   top: 0;
   z-index: 1000;
+  height: 70px;
 }
 
 .navbar ul {
   display: flex;
+  
   justify-content: center;
-  gap: 20px;
+  gap: 10px;
 }
 
 .navbar ul li a {
-  color: #dd0808;
+  color: white;
   font-size: 1.1em;
   font-weight: 500;
   padding: 10px;
@@ -799,4 +1394,7 @@ p {
   position: relative;  /* Asegura que el botón esté en su propio contexto de apilamiento */
   z-index: 10;  /* Ajusta el z-index según lo necesario */
 }
+
+
+
 </style>

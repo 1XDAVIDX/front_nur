@@ -14,7 +14,8 @@ import agregarCarrito from "../agregarCarrito.vue";
 import quitarCarrito from "../quitarCarrito.vue";
 import inventario from "../inventario.vue";
 import inventarioCliente from "../inventarioCliente.vue";
-import categoria from "../categoria.vue";
+import casa from "@/components/casa.vue";
+
 
 
 const routes=[
@@ -98,10 +99,11 @@ const routes=[
     }
     ,
     {
-        path:'/categoria',
-        name:'categoria',
-        component:categoria
+        path:'/casa',
+        name:'casa',
+        component:casa
     }
+
     
     
     

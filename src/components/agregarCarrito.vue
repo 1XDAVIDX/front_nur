@@ -26,7 +26,7 @@ export default{
                 })
                 Swal.fire({
                     icon:"success",
-                    title:"Compra Exitosa",
+                    title:"es aqui",
                     
                 })
             } catch (error) {
