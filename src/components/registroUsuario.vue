@@ -7,44 +7,59 @@ import { ref } from 'vue';
 export default {
     setup() {
         const usuario = ref({
-            id_usuario:"",
+            id_usuario: "",
             nombre: "",
-            email: "",
             contraseña: "",
-            rol:""
-            
+            rol: ""
         });
+
+        const showPassword = ref(false); // Para alternar visibilidad
         const message = ref('');
 
+        const validarContraseña = (contraseña) => {
+            // Mínimo 8 caracteres, al menos una letra, un número y un carácter especial
+            const regex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&._-])[A-Za-z\d@$!%*?&._-]{8,}$/;
+            return regex.test(contraseña);
+        };
+
         const insertarUsuario = async () => {
+            if (!validarContraseña(usuario.value.contraseña)) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Contraseña inválida',
+                    text: 'Debe tener al menos 8 caracteres, incluyendo letras, números y un carácter especial.'
+                });
+                return;
+            }
+
             try {
-                //const respuesta = await axios.post('http://127.0.0.1:8000/insertar/usuario', usuario.value);
-                const respuesta = await axios.post('http://192.168.80.22:8000/insertar/usuario', usuario.value);
-                message.value = respuesta.data.message;
+                const respuesta = await axios.post('http://127.0.0.1:8000/insertar/usuario', usuario.value);
                 message.value = Swal.fire({
-                    icon:'success',
-                    title:'Inicio de sesión exitoso',
-                    text:'Bienvenido a tu cuenta'
-                    });
+                    icon: 'success',
+                    title: 'Inicio de sesión exitoso',
+                    text: 'Bienvenido a tu cuenta'
+                });
             } catch (error) {
                 console.error("Error al registrar datos", error);
                 message.value = Swal.fire({
-                        icon:'error',
-                        title:'Error de iniciode sesion',
-                        text:'Usuario ya registrado' 
-
-                    });
+                    icon: 'error',
+                    title: 'Error de inicio de sesión',
+                    text: 'Usuario ya registrado'
+                });
             }
         };
+
         const router = useRouter();
-        
+
         return {
             usuario,
             insertarUsuario,
-            router
+            router,
+            showPassword
         };
     }
 };
+
 </script>
 
 <template>
@@ -53,17 +68,29 @@ export default {
         <h1 id="titulo">INICIO SESIÓN</h1>
         <button type="button" @click="()=>router.go(-1)"  id="x">X</button>
         </div>
-        <label class="respuesta">ID usuario:
-            <input v-model="usuario.id_usuario" type="text" required>
-        </label>
+        
         <label class="respuesta">Nombre:
             <input v-model="usuario.nombre" type="text" required>
         </label>
         <label class="respuesta">Correo:
-            <input v-model="usuario.email" type="email" required>
+            <input v-model="usuario.id_usuario" type="email" required>
         </label>
         <label class="respuesta">Contraseña:
-            <input v-model="usuario.contraseña" type="password" required>
+            <div style="display: flex; align-items: center;">
+                <input 
+                    :type="showPassword ? 'text' : 'password'" 
+                    v-model="usuario.contraseña" 
+                    required 
+                    style="flex: 1;"
+                >
+                <button 
+                    type="button" 
+                    @click="showPassword = !showPassword" 
+                    style="margin-left: 5px; padding: 5px;"
+                >
+                    {{ showPassword ? 'Ocultar' : 'Mostrar' }}
+                </button>
+            </div>
         </label>
         <label class="respuesta">Rol:
             <input v-model="usuario.rol" type="text">

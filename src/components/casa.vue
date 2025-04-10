@@ -344,6 +344,12 @@ export default {
     const getImagenUrl = (path) => {
       return `http://127.0.0.1:8000/${path}`;
     };
+    const onEliminar = (productoId)=>{
+      router.push({path:'/eliminarProducto', query: {productoId: productoId}})
+    }
+    const onModificar = (productoId)=>{
+      router.push({path:'/modificarProducto', query: {productoId: productoId}})
+    }
 
     onMounted(() => {
       const id = route.query.id;
@@ -374,7 +380,9 @@ export default {
       getImagenUrl,
       productosSimilares,
       enviarMensajeWhatsapp,
-      carritoCompra
+      carritoCompra,
+      onEliminar,
+      onModificar
     };
   }
 };

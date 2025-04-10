@@ -26,8 +26,8 @@ export default {
         const insertarlogin = async () => {
             try {
                 // Realiza la solicitud POST
-                //const respuesta = await axios.post('http://127.0.0.1:8000/login', login.value);
-                const respuesta = await axios.post('http://192.168.80.22:8000/login', login.value);
+                const respuesta = await axios.post('http://127.0.0.1:8000/login', login.value);
+                //const respuesta = await axios.post('http://192.168.80.22:8000/login', login.value);
                 
                 // Guarda el token en LocalStorage
                 const token = respuesta.data.access_token;
@@ -91,8 +91,8 @@ export default {
         <h1 id="titulo">INICIO SESIÓN</h1>
         <button type="button" @click="()=>router.go(-1)"  id="x">X</button>
         </div>
-        <label class="respuesta">ID usuario:
-            <input v-model="login.id_usuario" type="text" required>
+        <label class="respuesta">Correo:
+            <input v-model="login.id_usuario" type="email" required>
         </label>
         
         <label class="respuesta">Contraseña:

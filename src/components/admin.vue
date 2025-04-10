@@ -1,6 +1,6 @@
 <script>
 import axios from 'axios';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted,computed  } from 'vue';
 import { useRouter } from 'vue-router';
 import GraficoPastel from "@/components/GraficoPastel.vue"; 
 import Swal from 'sweetalert2';
@@ -16,9 +16,7 @@ export default {
     return {
         menuAbierto: false,
         modalAbierto: false,
-        //modalPedidoAbierto: false,
-        //pedidoSeleccionado: null,
-        //factura: {},
+        
       };
   },
   methods: {
@@ -34,32 +32,7 @@ export default {
       },
       cerrarModal() {
         this.modalAbierto = false;
-      },/*
-      abrirModalPedido(pedido) {
-        this.pedidoSeleccionado = pedido;
-        this.modalPedidoAbierto = true;
-      },
-      cerrarModalPedido() {
-        this.modalPedidoAbierto = false;
-        this.pedidoSeleccionado = null;
-      },
-      async onCompletado(id_compra, id_usuario) {
-        try {
-          const respuesta = await axios.delete(`http://127.0.0.1:8000/completada/${id_compra}/${id_usuario}`);
-          this.factura = respuesta.data;
-          this.abrirModalPedido(this.factura);
-          Swal.fire({
-            icon: "success",
-            title: "Pedido Hecho",
-            text: `Producto: ${this.factura.id_producto} Cantidad: ${this.factura.cantidad} Total: ${this.factura.total}\nID compra: ${this.factura.id_compra} ID Usuario: ${this.factura.id_usuario} Nombre: ${this.factura.nombre} Correo: ${this.factura.email}`
-          });
-        } catch (error) {
-          Swal.fire({
-            icon: "error",
-            title: "Datos no son correctos"
-          });
-        }
-      },*/
+      }
     },
   setup() {
     
@@ -75,14 +48,27 @@ export default {
     
     // Consultar productos comprados de la base de datos
     const pedido = ref({});
-  
-    const facturapedido = async () => {
-    try {
-    const respuesta = await axios.get("http://127.0.0.1:8000/compra");
-    const compras = respuesta.data;
+    const usuariosPaginados = ref([]);
+    const paginaActual = ref(1);
+    const usuariosPorPagina = 1;
 
-    // Agrupar por id_usuario
-    const comprasAgrupadas = compras.reduce((acc, compra) => {
+    const totalPaginas = computed(() =>
+      Math.ceil(Object.keys(pedido.value).length / usuariosPorPagina)
+    );
+
+    const actualizarPaginado = () => {
+      const usuarios = Object.entries(pedido.value);
+      const inicio = (paginaActual.value - 1) * usuariosPorPagina;
+      const fin = inicio + usuariosPorPagina;
+      usuariosPaginados.value = usuarios.slice(inicio, fin);
+    };
+
+    const facturapedido = async () => {
+      try {
+        const respuesta = await axios.get("http://127.0.0.1:8000/compra");
+        const compras = respuesta.data;
+
+        const comprasAgrupadas = compras.reduce((acc, compra) => {
           if (!acc[compra.id_usuario]) {
             acc[compra.id_usuario] = [];
           }
@@ -90,9 +76,17 @@ export default {
           return acc;
         }, {});
 
-        pedido.value = comprasAgrupadas; // Asignamos el objeto agrupado a la variable reactiva
+        pedido.value = comprasAgrupadas;
+        actualizarPaginado();
       } catch (error) {
         console.log("No se cargaron los datos", error);
+      }
+    };
+
+    const cambiarPagina = (nuevaPagina) => {
+      if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas.value) {
+        paginaActual.value = nuevaPagina;
+        actualizarPaginado();
       }
     };
 
@@ -107,7 +101,7 @@ export default {
               Swal.fire({
                   icon:"success",
                   title:"Pedido Hecho",
-                  text:`Producto: ${factura.value.id_producto} Cantidad:${factura.value.cantidad} Total:${factura.value.total}\nID compra:${factura.value.id_compra} ID Usuario:${factura.value.id_usuario} Nombre:${factura.value.nombre} Correo:${factura.value.email}`
+                  text:`Producto: ${factura.value.id_producto} Cantidad:${factura.value.cantidad} Total:${factura.value.total}\nID compra:${factura.value.id_compra} ID Usuario:${factura.value.id_usuario} Nombre:${factura.value.nombre}`
               }).then(() =>{
                 router.go(0);
               })
@@ -288,16 +282,49 @@ export default {
       consultaProducto();
     };
 
+    // Variables reactivas
+    
+    const productosPorPagina = 6; // Número de productos por página
+    const paginaActualProductos = ref(1); // Página actual
+    const productosPaginados = ref([]); // Productos que se mostrarán en la página actual
+
+    // Total de páginas calculado dinámicamente
+    const totalPaginasProductos = computed(() =>
+      Math.ceil(data.value.length / productosPorPagina)
+    );
+
+    // Función para actualizar los productos paginados
+    const actualizarPaginadoProductos = () => {
+      const inicio = (paginaActualProductos.value - 1) * productosPorPagina;
+      const fin = inicio + productosPorPagina;
+      productosPaginados.value = data.value.slice(inicio, fin);
+    };
+
+    // Función para cambiar de página
+    const cambiarPaginaProductos = (nuevaPagina) => {
+      if (nuevaPagina >= 1 && nuevaPagina <= totalPaginasProductos.value) {
+        paginaActualProductos.value = nuevaPagina;
+        actualizarPaginadoProductos();
+      }
+    };
+
+    // Función para consultar productos desde la API
     const consultaProducto = async () => {
       try {
-        const respuesta = await axios.get('http://127.0.0.1:8000/consultarProductos');
-        
-        if (categoriaSeleccionada.value === 'Todos') {
-          data.value = respuesta.data.map(item => ({ ...item, cantidadProducto: 1 }));
-          
-        } else {
-          data.value = respuesta.data.filter(item => item.categotia === categoriaSeleccionada.value).map(item => ({ ...item, cantidadProducto: 1 }));
+        const respuesta = await axios.get("http://127.0.0.1:8000/consultarProductos");
+        data.value = respuesta.data.map((item) => ({
+          ...item,
+          cantidadProducto: 1, // Agregar cantidad inicial
+        }));
+
+        // Filtrar productos por categoría
+        if (categoriaSeleccionada.value !== "Todos") {
+          data.value = data.value.filter(
+            (item) => item.categotia === categoriaSeleccionada.value
+          );
         }
+
+        actualizarPaginadoProductos(); // Actualizar los productos paginados
       } catch (error) {
         console.log("No se cargaron los datos", error);
       }
@@ -356,6 +383,13 @@ export default {
       comentarios,
       getImagenUrl,
       pedido,
+      usuariosPaginados,
+      paginaActual,
+      totalPaginas,
+      cambiarPagina,
+      
+      
+      facturapedido,
       productosVendidos,
       //onComprar,
       onEliminar,
@@ -385,6 +419,10 @@ export default {
 
       pedidoHechoMultiple,
 
+      productosPaginados,
+      paginaActualProductos,
+      totalPaginasProductos,
+      cambiarPaginaProductos,
       
       
       
@@ -549,33 +587,38 @@ export default {
 
 
     <div class="centro_control">
-        
-        <div class="right-section">
-          <h2>Ventas</h2>
-          <div class="cards">
-            <ul>
-              <li v-for="(compras, usuarioId) in pedido" :key="usuarioId">
-                <h3>--------------------------------------------------------------------------------------------------------------------------------------------------</h3>
-                <p><h3>ID Usuario: {{ usuarioId }}</h3></p>
-                
-                <ul>
-                  <li class="card" v-for="compra in compras" :key="compra.id_compra">
-                    <b>ID Compra: {{ compra.id_compra }}</b><br>
-                    <b>ID usuario: {{ compra.id_usuario }}</b><br>
-                    <b>ID Producto: {{ compra.id_producto }}</b><br>
-                    <b>Cantidad: {{ compra.cantidad }}</b><br>
-                    <b>Total: {{ compra.total.toLocaleString() }}</b><br>
-                    <button class="btn" @click="pedidoHecho(compra.id_compra, compra.id_usuario)">Hacer pedido</button>
-                  </li>
-                </ul>
-                <p><h3>Total de compra: <b>${{ compras.reduce((sum, compra) => sum + compra.total, 0).toLocaleString() }}</b></h3> </p>
-                <button class="btn-compra-multiple" @click="pedidoHechoMultiple(usuarioId)">Compra Múltiple</button>
-                <h3>--------------------------------------------------------------------------------------------------------------------------------------------------</h3>
-              </li>
-            </ul>
-          </div>
+      <div class="right-section">
+        <h2>Ventas</h2>
+        <div class="cards">
+          <ul>
+            <li v-for="[usuarioId, compras] in usuariosPaginados" :key="usuarioId">
+              <h3>------------------------------------------------------------</h3>
+              <h3>ID Usuario: {{ usuarioId }}</h3>
+              <ul>
+                <li class="card" v-for="compra in compras" :key="compra.id_compra">
+                  <b>ID Compra: {{ compra.id_compra }}</b><br>
+                  <b>ID Producto: {{ compra.id_producto }}</b><br>
+                  <b>Cantidad: {{ compra.cantidad }}</b><br>
+                  <b>Total: {{ compra.total.toLocaleString() }}</b><br>
+                  <button class="btn" @click="pedidoHecho(compra.id_compra, compra.id_usuario)">Hacer pedido</button>
+                </li>
+              </ul>
+              <h3>Total de compra: <b>${{ compras.reduce((sum, compra) => sum + compra.total, 0).toLocaleString() }}</b></h3>
+              <button class="btn-compra-multiple" @click="pedidoHechoMultiple(usuarioId)">Compra Múltiple</button>
+              <h3>------------------------------------------------------------</h3>
+            </li>
+          </ul>
         </div>
+
+        <!-- Paginación -->
+        <div class="paginacion">
+          <button @click="cambiarPagina(paginaActual - 1)" :disabled="paginaActual === 1">Anterior</button>
+          <span>Página {{ paginaActual }} de {{ totalPaginas }}</span>
+          <button @click="cambiarPagina(paginaActual + 1)" :disabled="paginaActual === totalPaginas">Siguiente</button>
+        </div>
+      </div>
     </div>
+
 
     <!-- <section class="modal" v-if="modalPedidoAbierto" aria-hidden="!modalPedidoAbierto">
       <div class="modal__container" role="dialog" aria-labelledby="modalPedidoTitle">
@@ -616,28 +659,41 @@ export default {
       </button>
     </div>
 
+    
+
 
     <div class="box">
-      <!-- ...existing code... -->
+      <!-- Sección de productos -->
       <section class="section-products" id="products">
         <div class="contenedor-sobre-nosotros">
           <div class="cards">
             <ul>
-              <li v-for="producto in data" :key="producto.id_producto" class="card" @click="irACasa(producto)">
+              <li
+                v-for="producto in productosPaginados"
+                :key="producto.id_producto"
+                class="card"
+                @click="irACasa(producto)"
+              >
                 <div class="card-content">
                   <button class="btn" @click.stop="onModificar(producto.id_producto)">✏️</button>
                   <button class="btn" @click.stop="onEliminar(producto.id_producto)">🗑️</button>
                   <div class="imagen">
-                    <img :src="getImagenUrl(producto.imagen)" alt="Imagen">
+                    <img :src="getImagenUrl(producto.imagen)" alt="Imagen del producto" />
                   </div>
-                  <strong>ID:</strong> {{ producto.id_producto }}<br>
-                  <strong>Nombre:</strong> {{ producto.nombre }}<br>
-                  <strong>Descripción:</strong> {{ producto.descripcion }}<br>
-                  <strong>Precio:</strong> ${{ producto.precio.toFixed(2) }}<br>
-                  <strong>Stock:</strong> {{ producto.stock }}<br>
+                  <strong>ID:</strong> {{ producto.id_producto }}<br />
+                  <strong>Nombre:</strong> {{ producto.nombre }}<br />
+                  <strong>Descripción:</strong> {{ producto.descripcion }}<br />
+                  <strong>Precio:</strong> ${{ producto.precio.toFixed(2) }}<br />
+                  <strong>Stock:</strong> {{ producto.stock }}<br />
                   <div class="stock-control">
                     <button type="button" @click.stop="decrementarCantidad(producto)">-</button>
-                    <input v-model="producto.cantidadProducto" type="number" min="1" step="1" required>
+                    <input
+                      v-model="producto.cantidadProducto"
+                      type="number"
+                      min="1"
+                      step="1"
+                      required
+                    />
                     <button type="button" @click.stop="incrementarCantidad(producto)">+</button>
                   </div>
                   <button class="btn" @click.stop="comprar(producto)">Compra</button>
@@ -648,9 +704,25 @@ export default {
           </div>
         </div>
       </section>
-      <!-- ...existing code... -->
+
+      <!-- Controles de paginación -->
+      <div class="paginacion">
+        <button
+          @click="cambiarPaginaProductos(paginaActualProductos - 1)"
+          :disabled="paginaActualProductos === 1"
+        >
+          Anterior
+        </button>
+        <span>Página {{ paginaActualProductos }} de {{ totalPaginasProductos }}</span>
+        <button
+          @click="cambiarPaginaProductos(paginaActualProductos + 1)"
+          :disabled="paginaActualProductos === totalPaginasProductos"
+        >
+          Siguiente
+        </button>
+      </div>
     </div>
-    
+      
 
     <!-- Sección de comentarios -->
     <section class="comments-section" id="comments">
