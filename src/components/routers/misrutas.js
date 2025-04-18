@@ -15,6 +15,7 @@ import quitarCarrito from "../quitarCarrito.vue";
 import inventario from "../inventario.vue";
 import inventarioCliente from "../inventarioCliente.vue";
 import casa from "@/components/casa.vue";
+import correoRecuperacion from "../correoRecuperacion.vue";
 
 
 
@@ -102,6 +103,12 @@ const routes=[
         path:'/casa',
         name:'casa',
         component:casa
+    }
+    ,
+    {
+        path:'/correoRecuperacion',
+        name:'correoRecuperacion',
+        component:correoRecuperacion
     }
 
     

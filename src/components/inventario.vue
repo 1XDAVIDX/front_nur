@@ -2,10 +2,12 @@
 import axios from 'axios';
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import Swal from 'sweetalert2';
 
 export default {
   setup() {
     const inventario = ref([]);
+    
     const totalesPorUsuario = ref([]);
 
     const currentPageInventario = ref(1);
@@ -24,20 +26,35 @@ export default {
 
     const totalPagesInventario = computed(() => Math.ceil(inventario.value.length / itemsPerPage));
     const totalPagesTotales = computed(() => Math.ceil(totalesPorUsuario.value.length / itemsPerPage));
-
+    const busquedad = ref('');
+    const enviarBusqueda = () => {
+      datosInventario();
+    };
     const datosInventario = async () => {
       try {
         const respuesta = await axios.get('http://127.0.0.1:8000/compraTerminado');
         inventario.value = respuesta.data;
+
+        if (busquedad.value.trim()!== '') {
+          inventario.value = inventario.value.filter(item => {
+            return item.id_usuario.toLowerCase().includes(busquedad.value.toLowerCase());
+          });
+          busquedad.value = '';
+        } else {
+          inventario.value = inventario.value;
+          busquedad.value = '';      
+        }
 
         const agrupado = {};
         inventario.value.forEach(item => {
           if (!agrupado[item.id_usuario]) {
             agrupado[item.id_usuario] = {
               id_usuario: item.id_usuario,
+              id_productos: [],
               total: 0
             };
           }
+          agrupado[item.id_usuario].id_productos.push(item.id_producto);
           agrupado[item.id_usuario].total += item.total;
         });
 
@@ -47,6 +64,50 @@ export default {
       }
     };
 
+    const mostrarModal = ref(false);
+    const datosModificar = ref({});
+    const abrirModal = (p) => {
+      datosModificar.value = { 
+        id_CompraTerminada: p.id_CompraTerminada,
+        fecha: p.fecha,
+        estado: p.estado,
+        guiaTranporte: p.guiaTranporte
+      };
+      mostrarModal.value = true;
+    };
+
+    
+
+    const modificarCompraTerminada = async () => {
+      try {
+        const id = datosModificar.value.id_CompraTerminada;
+        const payload = {
+          fecha: datosModificar.value.fecha,
+          estado: datosModificar.value.estado,
+          guiaTranporte: datosModificar.value.guiaTranporte
+        };
+
+        const responder= await axios.put(`http://127.0.0.1:8000/editarCompraTer/${id}`, payload);
+        
+        Swal.fire({
+          icon: "success",
+          title: "Datos Actualizados"
+        }).then(()=> { cerrarModal(); datosInventario();});
+
+       
+      } catch (error) {
+        console.error("Error al actualizar:", error);
+        Swal.fire({
+          icon: "error",
+          title: "Error al actualizar"
+        });
+      }
+    }
+    const cerrarModal = () => {
+      mostrarModal.value = false;
+    };
+
+
     const router = useRouter();
 
     onMounted(() => {
@@ -54,6 +115,13 @@ export default {
     });
 
     return {
+      mostrarModal,
+      abrirModal,
+      cerrarModal,
+      datosModificar,
+      modificarCompraTerminada,
+      busquedad,
+      enviarBusqueda,
       inventario,
       totalesPorUsuario,
       paginatedInventario,
@@ -71,8 +139,25 @@ export default {
 <template>
   <button type="button" @click="router.go(-1)" id="x">X</button>
 
+  
   <div class="tabla">
     <h2>Lista de Compras Terminadas</h2>
+
+    <!-- Buscador estilizado -->
+    <ul>
+      <li class="contenedor-buscador">
+        <form @submit.prevent="enviarBusqueda" class="form-buscador">
+          <input
+            type="text"
+            v-model="busquedad"
+            placeholder="Buscar productos..."
+            class="input-buscador"
+          />
+          <button type="submit" class="boton-buscador"><i class="fas fa-search"></i></button>
+        </form>
+      </li>
+    </ul>
+
     <table>
       <thead>
         <tr>
@@ -86,6 +171,7 @@ export default {
           <th>Estado</th>
           <th>Guía Transporte</th>
           <th>Total</th>
+          <th>Editarlo</th>
         </tr>
       </thead>
       <tbody class="iteracionInventario">
@@ -100,6 +186,7 @@ export default {
           <td>{{ i.estado }}</td>
           <td>{{ i.guiaTranporte }}</td>
           <td>{{ i.total }}</td>
+          <td><button @click="abrirModal(i)" class="boton-editar"><i class="fas fa-pencil-alt"></i></button></td>
         </tr>
       </tbody>
     </table>
@@ -116,13 +203,16 @@ export default {
       <thead>
         <tr>
           <th>ID Usuario</th>
+          <th>ID Producto</th>
           <th>Total Acumulado</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="usuario in paginatedTotales" :key="usuario.id_usuario">
           <td>{{ usuario.id_usuario }}</td>
+          <td>{{ usuario.id_productos.join(', ') }}</td>
           <td>{{ usuario.total }}</td>
+          
         </tr>
       </tbody>
     </table>
@@ -132,9 +222,115 @@ export default {
       <button @click="currentPageTotales++" :disabled="currentPageTotales === totalPagesTotales">Siguiente</button>
     </div>
   </div>
+
+
+  <!-- Modal -->
+  <div v-if="mostrarModal" class="modal-overlay">
+    <div class="modal-contenido">
+      <h3>Editar Compra Terminada</h3>
+      <form @submit.prevent="modificarCompraTerminada">
+        <div class="form-group">
+          <label for="fecha">Fecha:</label>
+          <input type="date" id="fecha" v-model="datosModificar.fecha" />
+        </div>
+        <div class="form-group">
+          <label for="estado">Estado:</label>
+          <input type="text" id="estado" v-model="datosModificar.estado" />
+        </div>
+        <div class="form-group">
+          <label for="guiaTranporte">Guía Transporte:</label>
+          <input type="text" id="guiaTranporte" v-model="datosModificar.guiaTranporte" />
+        </div>
+        <div class="modal-buttons">
+          <button type="submit" class="guardar">Guardar</button>
+          <button type="button" @click="cerrarModal" class="cerrar">X</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </template>
 
 <style scoped>
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-contenido {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 400px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-contenido h3 {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: space-between;
+}
+
+.modal-buttons .guardar {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.modal-buttons .guardar:hover {
+  background-color: #45a049;
+}
+
+.modal-buttons .cerrar {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.modal-buttons .cerrar:hover {
+  background-color: #e53935;
+}
+
+.contenedor-buscador{
+  padding: 50px;
+  display: flex;
+  justify-content: right;
+}
 .iteracionInventario {
   color: black;
 }

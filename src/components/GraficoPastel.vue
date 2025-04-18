@@ -1,5 +1,7 @@
 <template>
-  <div ref="grafico" style="width: 100%; height: 400px;"></div>
+  <div class="grafico-container">
+    <div ref="grafico" class="grafico-pie"></div>
+  </div>
 </template>
 
 <script>
@@ -8,48 +10,112 @@ import * as echarts from "echarts";
 
 export default {
   props: {
-    productosVendidos: Array, // Recibe los datos desde el padre
+    productosVendidos: Array,
   },
   setup(props) {
     const grafico = ref(null);
+    let chartInstance = null;
 
     const dibujarGrafico = () => {
       if (!grafico.value || !props.productosVendidos.length) return;
 
-      const chart = echarts.init(grafico.value);
+      if (!chartInstance) {
+        chartInstance = echarts.init(grafico.value);
+        window.addEventListener("resize", () => chartInstance.resize());
+      }
+
       const opciones = {
-        title: { text: "Productos más vendidos", left: "center",textStyle:{ color : "red", fontSize:25} },
-        tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
-        legend: { orient: "vertical", left: "right",top: "5%", textStyle: { fontSize: 14, fontWeight: "bold" } },
+        title: {
+          //text: "Productos más vendidos",
+          left: "center",
+          padding: 0,
+          textStyle: {
+            color: "#333",
+            fontSize: 24,
+            fontWeight: "bold",
+          },
+        },
+        tooltip: {
+          
+          trigger: "item",
+          formatter: "{b}: {c} ({d}%)",
+        },
+        legend: {
+          orient: "horizontal",
+          bottom: 10,
+          textStyle: {
+            fontSize: 13,
+            color: "#666",
+          },
+        },
         series: [
           {
             name: "Ventas",
             type: "pie",
-            radius: "90%",
+            radius: ["40%", "75%"],
+            avoidLabelOverlap: false,
             label: {
-              show: true, // Asegura que se muestren los nombres
-              fontSize: 14, 
-              fontWeight: "bold" 
+              show: window.innerWidth > 500,
+              formatter: '{name|{b}}',
+              rich: {
+                name: {
+                  fontSize: 13,
+                  color: '#333',
+                  lineHeight: 18,
+                  width: 100, // controla el ancho máximo de texto
+                  overflow: 'break',
+                },
+                value: {
+                  fontSize: 12,
+                  color: '#999',
+                },
+              },
             },
-            
-            top: 100,
-            
-            data: props.productosVendidos.map(p => ({ name: p.nombre_producto, value: p.cantidad })),
+            labelLine: {
+              length: 20,
+              length2: 10,
+              smooth: true,
+            },
+            data: props.productosVendidos.map(p => ({
+              name: p.nombre_producto,
+              value: p.cantidad
+            })),
             emphasis: {
-              itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: "rgba(0, 0, 0, 0.5)"}
-            }
-          }
-        ]
+              scale: true,
+              itemStyle: {
+                shadowBlur: 15,
+                shadowOffsetX: 0,
+                shadowColor: "rgba(0, 0, 0, 0.3)",
+              },
+            },
+            animationDuration: 1000,
+          },
+        ],
       };
 
-      chart.setOption(opciones);
+      chartInstance.setOption(opciones);
     };
 
     watch(() => props.productosVendidos, dibujarGrafico, { deep: true });
-
     onMounted(dibujarGrafico);
 
     return { grafico };
   },
 };
 </script>
+
+<style scoped>
+.grafico-container {
+  
+  max-width: 800px;
+  margin: auto;
+  padding: 1rem;
+  
+}
+
+.grafico-pie {
+  width: 100%;
+  height: 400px;
+  min-height: 300px;
+}
+</style>

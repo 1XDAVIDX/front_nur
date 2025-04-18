@@ -1,38 +1,45 @@
 <template>
-  <nav class="navbar">
-      <ul>
-        
-        <li><router-link to="/registroUsuario">Crear cuenta</router-link></li>
-        <li><router-link to="/pruebaLogin">Ingresar</router-link></li>
-        
+    <nav class="navbar">
+      <ul class="navbar-list">
+         
 
+        <!-- Buscador estilizado -->
+        <li class="contenedor-buscador">
+          <form @submit.prevent="realizarBusqueda" class="form-buscador">
+            <input
+              type="text"
+              v-model="busquedaBarra"
+              placeholder="Buscar productos..."
+              class="input-buscador"
+            />
+            <button type="submit" class="boton-buscador"><i class="fas fa-search"></i></button>
+          </form>
+        </li>
+        <li class="li_dos"><router-link to="/notificaciones"><i class="fas fa-bell"></i> </router-link></li>
+        <li class="li_dos"><router-link to="/whasappControl"><i class="fab fa-whatsapp"></i> </router-link></li>
+
+        <!-- Menú hamburguesa -->
         <div>
-          <span id="hamburguesa" @click="toggleMenu" class="far fa-user-circle"> </span>
+          <span id="hamburguesa" @click="toggleMenu" class="far fa-user-circle"></span>
           <nav :class="['menuHamburguesa', { openHamburguesa: menuAbierto }]">
             <span id="cerrarHamburguesa" @click="toggleMenu">&#128938;</span>
-            <ul >
+            <ul>
               <li id="libienvenido">¡Bienvenido!</li>
               <li class="infocliente">{{ nombreUsuario }}</li>
 
+              <li id="lilinea">-----------------------------------------</li>
+              <li class="menuInfoCliente" @click="abrirModalUsuario"><i class="fas fa-user-edit"></i> PERFIL</li>
+              <li class="lihamburguesa"><router-link to="/registroProducto"><i class="fas fa-box"></i> Registrar Producto</router-link></li>
+              <li class="lihamburguesa"><router-link to="/modificarProducto"><i class="fas fa-edit"></i> Modificar Producto</router-link></li>
+              <li class="lihamburguesa"><router-link to="/eliminarProducto"><i class="fas fa-trash-alt"></i> Eliminar Producto</router-link></li>
+              <li class="lihamburguesa"><router-link to="/inventario"><i class="fas fa-clipboard-list"></i> Producto Despachados</router-link></li>
+              <li class="lihamburguesa"><router-link to="/registroUsuario"><i class="fas fa-user-plus"></i> Crear cuenta</router-link></li>
+              <li class="lihamburguesa"><router-link to="/pruebaLogin"><i class="fas fa-sign-in-alt"></i> Ingresar Usuario</router-link></li>
 
               <li id="lilinea">-----------------------------------------</li>
-              <li class="lihamburguesa"><router-link to="/registroProducto">Registrar Producto</router-link></li>
-              
-              <li class="lihamburguesa"><router-link to="/modificarProducto">Modificar Producto</router-link></li>
-              <li class="lihamburguesa"><router-link to="/eliminarProducto">Eliminar Producto</router-link></li>
-              <li class="lihamburguesa"><router-link to="/inventario">Producto Despachados</router-link></li>
-              <li class="lihamburguesa"><router-link to="/registroUsuario">Crear cuenta</router-link></li>
-              <li class="lihamburguesa"><router-link to="/pruebaLogin">Ingresar Usuario</router-link></li>
-             
-             
-              <li id="lilinea">-----------------------------------------</li>
-
-              <!--<li class="infocliente">{{ nombreUsuario }}<br> {{ emailUsuario }}</li>-->
             </ul>
           </nav>
         </div>
-
-
       </ul>
     </nav>
   <div class="detalle-container">
@@ -205,6 +212,12 @@ export default {
     const categoriaProducto =ref("");
     const productosSimilares = ref([]);
 
+
+
+    
+
+    
+
     // Función para enviar mensaje de WhatsApp
     function enviarMensajeWhatsapp(productoNombre) {
       const numero = "573508381030";
@@ -230,6 +243,8 @@ export default {
           productosSimilares.value.forEach((p) => {
             p.cantidadProducto = 1;
           });
+
+        
         } else {
           console.warn("No se encontraron productos similares.");
         }
@@ -237,15 +252,35 @@ export default {
         console.error("Error en productoAlgoritmo:", error);
       }
     };
- 
+    
+    const busquedaBarra = ref('');
+    const realizarBusqueda = () => {
+      console.log("Texto de búsqueda:", busquedaBarra.value);
+      fetchProducto(); 
+    };
     // producto seleccionado
     const fetchProducto = async (id) => {
       try {
         console.log("id:", id);
         const respuesta = await axios.get('http://127.0.0.1:8000/consultarProductos');
+        const productos = respuesta.data;
+
+        let productoEncontrado;
+        
+        if (busquedaBarra.value.trim() === '') {
+          
+          productoEncontrado = productos.find(p => p.id_producto == id);
+          busquedaBarra.value= ''; 
+        } else {
+          
+          productoEncontrado = productos.find(p => p.nombre.toLowerCase().includes(busquedaBarra.value.toLowerCase()));
+          busquedaBarra.value= ''; 
+        }
         
         // Buscar el producto correcto en el array
-        const productoEncontrado = respuesta.data.find(p => p.id_producto == id); 
+        //const productoEncontrado = respuesta.data.find(p => p.id_producto == id); 
+
+        //const productoEncontrado = respuesta.data.find(p => p.nombre == id); 
 
         if (productoEncontrado) {
           producto.value = productoEncontrado; 
@@ -371,6 +406,9 @@ export default {
     );
 
     return {
+      realizarBusqueda,
+      busquedaBarra,
+      
       producto,
       cantidad,
       incrementarCantidad,

@@ -4,125 +4,143 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 
-
-
 export default {
   setup() {
     const decode = JSON.parse(localStorage.getItem('access_token'));
-    const idusuario = decode.id_usuario
+    const idusuario = decode.id_usuario;
     const router = useRouter();
-    const pedido = ref([])
-    const facturapedido = async ()=>{
+    const pedido = ref([]);
+
+    const facturapedido = async () => {
       try {
         const respuesta = await axios.get('http://127.0.0.1:8000/carritoProductos');
-        pedido.value = respuesta.data
+        pedido.value = respuesta.data;
       } catch (error) {
-        console.log("No se cargaron los datos ", error);
+        console.log('No se cargaron los datos ', error);
       }
-    }
-    const comprarMultiple = async()=>{
-      try{
-        const compraMultiple =await axios.post("http://127.0.0.1:8000/carritoMultiple/"+idusuario);
+    };
+
+    const comprarMultiple = async () => {
+      try {
+        const compraMultiple = await axios.post(
+          'http://127.0.0.1:8000/carritoMultiple/' + idusuario
+        );
         Swal.fire({
-                    icon:"success",
-                    title:"Pedidos Hechos",
-                    
-                })
-        router.go(0)
-      }catch{
-
+          icon: 'success',
+          title: 'Pedidos Hechos',
+        });
+        router.go(0);
+      } catch (error) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error al procesar la compra',
+        });
       }
-    }
-    
-    onMounted(() =>  {
-      
-      facturapedido()
-      }
-    );
+    };
 
-    const onQuitar = (id_carrito)=>{
-      router.push({path:'/quitarCarrito', query:{id_carrito:id_carrito}})
-    }
-    const onComprar = (productoId,cantidad,id_carrito) => {
-      router.push({ path: '/comprar', query: { productoId: productoId, cantidad:cantidad, id_carrito:id_carrito } });
-    }
+    // ✅ Confirmar y eliminar producto
+    const onQuitar = async (id_carrito) => {
+      const confirmacion = await Swal.fire({
+        title: '¿Estás seguro?',
+        text: 'Este producto se eliminará del carrito.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true,
+      });
+
+      if (confirmacion.isConfirmed) {
+        try {
+          await axios.delete('http://127.0.0.1:8000/quitar/' + id_carrito);
+          Swal.fire({
+            icon: 'success',
+            title: 'Producto eliminado del carrito',
+            timer: 1500,
+            showConfirmButton: false,
+          });
+          facturapedido(); // Actualizar lista de productos
+        } catch (error) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error al eliminar',
+            text: 'No se pudo eliminar el producto',
+          });
+        }
+      }
+    };
+
+    const onComprar = (productoId, cantidad, id_carrito) => {
+      router.push({
+        path: '/comprar',
+        query: {
+          productoId: productoId,
+          cantidad: cantidad,
+          id_carrito: id_carrito,
+        },
+      });
+    };
+
+    onMounted(() => {
+      facturapedido();
+    });
+
     return {
-      
       pedido,
       onQuitar,
       onComprar,
       router,
-      comprarMultiple
+      comprarMultiple,
     };
-  }
+  },
 };
+
 </script>
-
 <template>
-
-
   <div class="box">
-    <!-- Header principal -->
-    
-
-    <!-- Barra de navegación -->
     <nav class="navbar">
       <ul>
-       
         <li><button type="button" @click="router.go(-1)" id="x">INICIO</button></li>
       </ul>
     </nav>
-    <h2>¡Tus compras! </h2>
+
+    <h2>¡Tus compras!</h2>
 
     <section class="section-products" id="products">
-     
-      <div class="contenedor-sobre-nosotros">
-        <img src="" alt="" class="imagen-about-us">
-        
-
-          <div class="cards">
-            <ul>
-              <li v-for="i in pedido" :key="i" class="card">
-                <b class="pedidoespacios">ID Compra: {{ i.id_carrito }} </b>
-                <b class="pedidoespacios">ID Usuario:{{ i.id_usuario }} </b>       
-                <b class="pedidoespacios">ID Producto:{{ i.id_producto }} </b>
-                
-                <b class="pedidoespacios">Cantida:{{ i.cantidad }} </b>
-                <b class="pedidoespacios">Total:{{ i.total }} </b><br>
-                <button  class="btn" @click="onQuitar(i.id_carrito)" > - </button>
-                <button  class="botn" @click="onComprar(i.id_producto, i.cantidad,i.id_carrito)" > Comprar </button>
-                
-                
-              </li>
-            </ul>
+      <div class="contenedor-checkout">
+        <!-- Columna izquierda: productos -->
+        <div class="productos-lista">
+          <h3>Carrito de Compras</h3>
+          <ul>
+            <li v-for="i in pedido" :key="i" class="producto-item">
+              <div class="info-producto">
+                <img src="https://placekitten.com/150/150" alt="Producto" />
+                <div class="detalle">
+                  <p><b>ID Compra:</b> {{ i.id_carrito }}</p>
+                  <p><b>ID Usuario:</b> {{ i.id_usuario }}</p>
+                  <p><b>ID Producto:</b> {{ i.id_producto }}</p>
+                  <p><b>Cantidad:</b> {{ i.cantidad }}</p>
+                  <p><b>Total:</b> ${{ i.total }}</p>
+                  <div class="acciones">
+                    <button class="btn" @click="onQuitar(i.id_carrito)">🗑</button>
+                    <button class="botn" @click="onComprar(i.id_producto, i.cantidad, i.id_carrito)">Comprar</button>
+                  </div>
+                </div>
+              </div>
+            </li>
+          </ul>
         </div>
-        <button  class="botn" @click="comprarMultiple">Comprar todos</button>
 
-
-        
+        <!-- Columna derecha: resumen -->
+        <div class="resumen-pedido">
+          <h3>Resumen del Pedido</h3>
+          <p><strong>Productos en carrito:</strong> {{ pedido.length }}</p>
+          <p><strong>Total general:</strong> ${{ calcularTotal }}</p>
+          <button class="botn resumen-boton" @click="comprarMultiple">Comprar todos</button>
+          <p class="nota">No se cobrará hasta confirmar en la siguiente página</p>
+        </div>
       </div>
     </section>
-
-
-
-    <!-- Sección de productos -->
-    
-    <!-- Sección de lo que hacemos -->
-    
-
-    
-    
-     <!-- Formulario de contacto -->
-     <section class="contact-form" id="contact">
-      <h2>Comentarios</h2>
-      <form>
-        
-        <input type="email" placeholder="Correo electrónico" required>
-        <textarea placeholder="Mensaje" required></textarea>
-        <button type="submit">Enviar</button>
-      </form>
-    </section>
-
 
     <!-- Footer -->
     <section class="footer">
@@ -144,14 +162,15 @@ export default {
           <p>Suscríbete para recibir las últimas novedades</p>
           <input type="email" placeholder="Tu Correo" class="email">
           <a href="#" class="btn">Suscribirse</a>
-        
         </div>
       </div>
       <div class="credit">&copy; 2024 Mascotas. Todos los derechos reservados.</div>
     </section>
   </div>
 </template>
+
 <style scoped>
+/* GENERAL */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -170,9 +189,11 @@ h1, h2, h3 {
   color: #333;
 }
 
-a {
-  text-decoration: none;
-  color: inherit;
+h2 {
+  font-size: 2.5em;
+  color: #FFA500;
+  text-align: center;
+  margin: 30px 0;
 }
 
 ul {
@@ -180,40 +201,14 @@ ul {
   padding: 0;
 }
 
-/* Header */
-header {
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.6), rgba(50, 50, 50, 0.8)), url('../img/portada.jpg') no-repeat center/cover;
-  color: #fff;
-  text-align: center;
-  height: 600px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.header-title {
-  font-size: 3.5em;
-  font-weight: bold;
-  color: #FFA500;
-  margin-bottom: 10px;
-}
-
-.header-subtitle {
-  font-size: 1.6em;
-  max-width: 600px;
-  color: #fffb00;
-}
-
-/* Navbar */
+/* NAVBAR */
 .navbar {
   background-color: #333;
   padding: 15px 0;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
   position: sticky;
   top: 0;
   z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .navbar ul {
@@ -222,185 +217,168 @@ header {
   gap: 20px;
 }
 
-.navbar ul li a {
-  color: #FFA500;
-  font-size: 1.1em;
-  font-weight: 500;
-  padding: 10px;
-  transition: color 0.3s;
+.navbar ul li button {
+  background-color: #FFA500;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s;
 }
 
-.navbar ul li a:hover {
-  color: #fffb00;
+.navbar ul li button:hover {
+  background-color: #FF9900;
 }
 
-/* Wave */
-.wave {
-  background-image: url('https://www.svgrepo.com/show/166897/wave.svg');
-  height: 80px;
-  background-size: cover;
-  position: absolute;
-  bottom: 0;
+/* CONTENEDORES */
+.contenedor-checkout {
+  display: flex;
+  gap: 30px;
+  padding: 30px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.productos-lista {
+  flex: 2;
+  min-width: 60%;
+}
+
+/* PRODUCTO */
+.producto-item {
+  background: #fff;
+  padding: 20px;
+  margin-bottom: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
   width: 100%;
 }
 
-h2 {
-  font-size: 2.5em; 
-  color: #FFA500; 
-  text-align: center;
-  margin-bottom: 20px; 
-}
-
-
-p {
-  font-size: 1.2em;
-  text-align: center;
-  max-width: 800px; 
-  margin: 0 auto 40px; 
-  line-height: 1.6;
-  color: #333;
-}
-/* Sections */
-.section {
-  padding: 60px 20px;
-  text-align: center;
-  background-color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 20px;
-  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-}
-
-.section h2 {
-  font-size: 2.5em;
-  color: #333;
-  margin-bottom: 20px;
-  font-weight: 600;
-  position: relative;
-}
-
-.section h2::after {
-  content: '';
-  width: 80px;
-  height: 3px;
-  background-color: #FFA500;
-  display: block;
-  margin: 8px auto 0;
-  border-radius: 4px;
-}
-
-.section p {
-  font-size: 1.1em;
-  color: #555;
-  max-width: 800px;
-  margin: 0 auto 20px;
-  line-height: 1.8;
-}
-
-.section-products .cards ul {
+.info-producto {
   display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
   gap: 20px;
+  align-items: flex-start;
 }
 
-/* Cards */
-.card {
-  background-color: #fff;
-  border: 1px solid #e0e0e0;
+.info-producto img {
+  width: 180px;
+  height: 180px;
   border-radius: 10px;
-  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  width: 280px;
-  text-align: left;
-  transition: transform 0.3s, box-shadow 0.3s;
+  object-fit: cover;
+  background-color: #eee;
 }
 
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.2);
-}
-.cards ul {
+.detalle {
+  flex: 1;
   display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 20px;
-  list-style: none;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.card-content strong {
-  color: #ff6600;
+.acciones {
+  margin-top: 10px;
+  display: flex;
+  gap: 15px;
 }
 
+/* RESUMEN */
+.resumen-pedido {
+  flex: 1;
+  min-width: 280px;
+  position: sticky;
+  top: 100px;
+  background: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  height: fit-content;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.resumen-pedido h3 {
+  margin-bottom: 20px;
+}
+
+.resumen-boton {
+  width: 100%;
+  margin-top: 15px;
+}
+
+.nota {
+  font-size: 0.9em;
+  color: #777;
+  margin-top: 10px;
+}
+
+/* BOTONES */
 .botn {
-  background-color:green;
+  background-color: green;
   color: white;
-  padding: 10px 20px;
+  padding: 10px 18px;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  font-size: 1em;
+  font-weight: bold;
   transition: background-color 0.3s;
-  margin-left:25%;
 }
 
 .botn:hover {
-  background-color: green;
+  background-color: darkgreen;
 }
 
-
-/* Buttons */
 .btn {
-  background-color:red;
+  background-color: red;
   color: white;
-  padding: 10px 20px;
+  padding: 10px 18px;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  font-size: 1em;
+  font-weight: bold;
   transition: background-color 0.3s;
 }
 
 .btn:hover {
-  background-color: red;
+  background-color: darkred;
 }
 
-/* Contact Form */
-.contact-form form {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .contenedor-checkout {
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .productos-lista {
+    width: 100%;
+  }
+
+  .resumen-pedido {
+    position: static;
+    width: 100%;
+    margin-top: 20px;
+  }
+
+  .info-producto {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .info-producto img {
+    width: 100%;
+    height: auto;
+  }
+
+  .acciones {
+    justify-content: center;
+  }
 }
 
-.contact-form input,
-.contact-form textarea {
-  width: 60%;
-  padding: 12px;
-  font-size: 1em;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-}
-
-.contact-form input:focus,
-.contact-form textarea:focus {
-  outline: none;
-  border-color: #FF8C00;
-}
-
-.contact-form button {
-  background-color: #FF8C00;
-  color: white;
-  padding: 12px 30px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.contact-form button:hover {
-  background-color: #FF7000;
-}
-
-/* Footer */
+/* FOOTER */
 .footer {
   background-color: #333;
   color: white;
@@ -434,7 +412,6 @@ p {
 }
 
 .footer .btn {
-  display: inline-block;
   padding: 10px 20px;
   background-color: #FFA500;
   color: white;
@@ -453,4 +430,5 @@ p {
   font-size: 1em;
   color: #ccc;
 }
+
 </style>

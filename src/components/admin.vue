@@ -16,6 +16,7 @@ export default {
     return {
         menuAbierto: false,
         modalAbierto: false,
+        productoSeleccionado: null
         
       };
   },
@@ -27,8 +28,9 @@ export default {
       toggleMenu() {
         this.menuAbierto = !this.menuAbierto;
       },
-      abrirModal() {
-      this.modalAbierto = true;
+      abrirModal(producto) {
+        this.productoSeleccionado = producto;
+        this.modalAbierto = true;
       },
       cerrarModal() {
         this.modalAbierto = false;
@@ -36,10 +38,19 @@ export default {
     },
   setup() {
     
-    const memoria = JSON.parse(localStorage.getItem('access_token'))
+    const memoriaRaw = localStorage.getItem('access_token');
+    const memoria = memoriaRaw ? JSON.parse(memoriaRaw) : null;
+
+
+    console.log(memoriaRaw)
     const idlocalestore = memoria?.id_usuario;
     const nombreUsuario = memoria?.nombre
+    const tarjetaUsuario = memoria?.tarjetaCredito ;
+    const telefonoUsuario = memoria?.telefono ;
+    const direccionUsuario = memoria?.direccion;
     const emailUsuario = memoria?.email
+
+
     const router = useRouter();
     const data = ref([]);
     
@@ -95,6 +106,17 @@ export default {
 
     const pedidoHecho = async (id_compra, id_usuario) =>{
             try {
+              Swal.fire({
+                title: "Procesando...",
+                text: "Por favor, espera mientras procesamos tu pedido.",
+                allowOutsideClick: false,
+                didOpen: () => {
+                  Swal.showLoading(); 
+                },
+              });
+
+
+
               const respuesta =await axios.delete(`http://127.0.0.1:8000/completada/${id_compra}/${id_usuario}`);
               factura.value = respuesta.data
               console.log("ok",factura.value)
@@ -123,6 +145,16 @@ export default {
 
     const pedidoHechoMultiple = async (id_usuario) => {
       try {
+
+        Swal.fire({
+                title: "Procesando...",
+                text: "Por favor, espera mientras procesamos tu pedido.",
+                allowOutsideClick: false,
+                didOpen: () => {
+                  Swal.showLoading(); 
+                },
+        });
+
         const respuesta = await axios.delete(`http://127.0.0.1:8000/completadas/${id_usuario}`);
         facturaultiple.value = respuesta.data;
     
@@ -141,7 +173,9 @@ export default {
                  .reduce((sum, c) => sum + c.total, 0)
                  .toLocaleString()}
              `
-           });
+           }).then(() =>{
+                router.go(0);
+              });
         } else {
            console.error("La respuesta no contiene compras_completadas:", facturaultiple.value);
         }
@@ -176,17 +210,64 @@ export default {
       }
     }
 
+    const onEliminar = async (id) => {
+      const resultado = await Swal.fire({
+        title: '¿Estás seguro?',
+        text: 'Esta acción eliminará el producto de forma permanente.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (resultado.isConfirmed) {
+        try {
+          const respuesta = await axios.delete(`http://127.0.0.1:8000/eliminar/${id}`);
+          Swal.fire({
+            icon: 'success',
+            title: '¡Producto eliminado!',
+            text: respuesta.data.message || 'El producto fue eliminado correctamente.'
+          });
+
+          // Si necesitas recargar productos después:
+          //await cargarProductos();
+        } catch (error) {
+          console.error("Error al eliminar:", error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo eliminar el producto.'
+          });
+        }
+      }
+    };
+
 
     // comprar producto 
     
 
     const comprar = async (producto) => {
+
       try {
         const compraProducto = {
           id_producto: producto.id_producto,
           id_usuario: idlocalestore,
           cantidad: producto.cantidadProducto,
+          
+
         };
+
+        Swal.fire({
+                title: "Procesando...",
+                text: "Por favor, espera mientras procesamos tu pedido.",
+                allowOutsideClick: false,
+                didOpen: () => {
+                  Swal.showLoading(); 
+                },
+        });
+        
 
         const respuesta = await axios.post("http://127.0.0.1:8000/compra", compraProducto);
         Swal.fire({
@@ -257,13 +338,69 @@ export default {
     const datosUsuario = ref({}); // Almacena los datos del usuario
 
     const abrirModalUsuario = () => {
+      if (memoria?.direccion == '') {
+            Swal.fire({
+              icon: "warning",
+              title: "Actualiza tus datos",
+              text: "No tienes datos necesarios, por favor ingresa una dirección antes de continuar.",
+            });
+      }
       datosUsuario.value = {
-        nombre: nombreUsuario,
-        email: emailUsuario,
         id: idlocalestore,
+        nombre: nombreUsuario,
+        direccion: direccionUsuario,
+        tarjetaCredito: tarjetaUsuario,
+        telefono: telefonoUsuario,
+        
+        
+      
+        
       };
+      
       modalUsuarioAbierto.value = true;
     };
+
+    const guardarEnLocalStorage = () => {
+      // Obtener los datos existentes en localStorage
+      const datosExistentesRaw = localStorage.getItem('access_token');
+      const datosExistentes = datosExistentesRaw ? JSON.parse(datosExistentesRaw) : {};
+
+      // Actualizar solo los tres datos específicos
+      const datosActualizados = {
+        ...datosExistentes, // Mantener los datos existentes
+        direccionUsuario: datosUsuario.value.direccion,
+        tarjetaUsuario: datosUsuario.value.tarjetaCredito,
+        telefonoUsuario: datosUsuario.value.telefono,
+      };
+
+      // Guardar los datos actualizados en localStorage
+      localStorage.setItem('access_token', JSON.stringify(datosActualizados));
+
+      console.log('Datos actualizados en localStorage:', datosActualizados);
+    };
+
+    
+
+    
+
+
+
+    const guardarCambiosUsuario = async ()=>{
+       try {         
+          const respuesta = await axios.put(`http://127.0.0.1:8000/editar/usuario/${idlocalestore}`, datosUsuario.value);
+          
+          guardarEnLocalStorage();
+          
+
+          Swal.fire({
+          icon: "success",
+          title: "Datos Actualizados",
+          
+        }).then(()=> { cerrarModalUsuario();});
+        } catch (error) {
+          console.error("Error al guardar los cambios usuario", error);
+        }
+      }
 
     const cerrarModalUsuario = () => {
       modalUsuarioAbierto.value = false;
@@ -308,6 +445,10 @@ export default {
       }
     };
 
+    const busquedaBarraadmin = ref('');
+    const enviarBusqueda = () => {
+      consultaProducto();
+    };
     // Función para consultar productos desde la API
     const consultaProducto = async () => {
       try {
@@ -318,11 +459,17 @@ export default {
         }));
 
         // Filtrar productos por categoría
-        if (categoriaSeleccionada.value !== "Todos") {
-          data.value = data.value.filter(
-            (item) => item.categotia === categoriaSeleccionada.value
-          );
+        if(busquedaBarraadmin.value.trim() === ''){
+          if (categoriaSeleccionada.value !== 'Todos') {
+            data.value = data.value.filter((producto) => producto.categotia === categoriaSeleccionada.value);
+            busquedaBarraadmin.value = ''; 
+          }
+
+        }else{
+          data.value = data.value.filter((producto) => producto.nombre.toLowerCase().includes(busquedaBarraadmin.value.toLowerCase()));
+          busquedaBarraadmin.value = ''; 
         }
+
 
         actualizarPaginadoProductos(); // Actualizar los productos paginados
       } catch (error) {
@@ -343,6 +490,7 @@ export default {
       datosGrafico()
       
       
+      
       }
     );
 
@@ -358,9 +506,7 @@ export default {
     const onComprar = (productoId) => {
       router.push({ path: '/comprar', query: { productoId: productoId } });
     }
-    const onEliminar = (productoId)=>{
-      router.push({path:'/eliminarProducto', query: {productoId: productoId}})
-    }
+    
     const onModificar = (productoId)=>{
       router.push({path:'/modificarProducto', query: {productoId: productoId}})
     }
@@ -378,7 +524,14 @@ export default {
       }
     }
 
+    const mostrarCategorias = ref(false)
+
+
     return {
+      memoria,
+      enviarBusqueda,
+      busquedaBarraadmin,
+      mostrarCategorias,
       data,
       comentarios,
       getImagenUrl,
@@ -423,6 +576,7 @@ export default {
       paginaActualProductos,
       totalPaginasProductos,
       cambiarPaginaProductos,
+      guardarCambiosUsuario,
       
       
       
@@ -455,45 +609,65 @@ export default {
       <img src="./img/logo.png" alt="Logo de" class="logo-large">
     </header>
 
-    <!-- Barra de navegación secundaria -->
     <nav class="navbar">
-      <ul>
-        
-        <li><router-link to="/registroUsuario">Crear cuenta</router-link></li>
-        <li><router-link to="/pruebaLogin">Ingresar</router-link></li>
-        
+      <ul class="navbar-list">
+          <!-- Botón desplegable de categorías -->
+        <li class="contenedor-categorias relative">
+          <button @click="mostrarCategorias = !mostrarCategorias" class="btn-categorias">
+            Categorías <i class="fas fa-chevron-down ml-1"></i>
+          </button>
 
+          <!-- Lista desplegable -->
+          <ul v-if="mostrarCategorias" class="dropdown-categorias">
+            <li v-for="categoria in categorias" :key="categoria">
+              <button 
+                @click="seleccionarCategoria(categoria); mostrarCategorias = false"
+                :class="{ activo: categoria === categoriaSeleccionada }"
+                class="item-categoria">
+                {{ categoria }}
+              </button>
+            </li>
+          </ul>
+        </li>
+
+        <!-- Buscador estilizado -->
+        <li class="contenedor-buscador">
+          <form @submit.prevent="enviarBusqueda" class="form-buscador">
+            <input
+              type="text"
+              v-model="busquedaBarraadmin"
+              placeholder="Buscar productos..."
+              class="input-buscador"
+            />
+            <button type="submit" class="boton-buscador"><i class="fas fa-search"></i></button>
+          </form>
+        </li>
+
+
+        <li class="li_dos"><router-link to="/notificaciones"><i class="fas fa-bell"></i> </router-link></li>
+        <li class="li_dos"><router-link to="/whasappControl"><i class="fab fa-whatsapp"></i> </router-link></li>
+        <!-- Menú hamburguesa -->
         <div>
-          <span id="hamburguesa" @click="toggleMenu" class="far fa-user-circle"> </span>
+          <span id="hamburguesa" @click="toggleMenu" class="far fa-user-circle"></span>
           <nav :class="['menuHamburguesa', { openHamburguesa: menuAbierto }]">
             <span id="cerrarHamburguesa" @click="toggleMenu">&#128938;</span>
-            <ul >
+            <ul>
               <li id="libienvenido">¡Bienvenido!</li>
               <li class="infocliente">{{ nombreUsuario }}</li>
 
+              <li id="lilinea">-----------------------------------------</li>
+              <li class="menuInfoCliente" @click="abrirModalUsuario"><i class="fas fa-user-edit"></i> PERFIL</li>
+              <li class="lihamburguesa"><router-link to="/registroProducto"><i class="fas fa-box"></i> Registrar Producto</router-link></li>
+              <li class="lihamburguesa"><router-link to="/modificarProducto"><i class="fas fa-edit"></i> Modificar Producto</router-link></li>
+              <li class="lihamburguesa"><router-link to="/eliminarProducto"><i class="fas fa-trash-alt"></i> Eliminar Producto</router-link></li>
+              <li class="lihamburguesa"><router-link to="/inventario"><i class="fas fa-clipboard-list"></i> Producto Despachados</router-link></li>
+              <li class="lihamburguesa"><router-link to="/registroUsuario"><i class="fas fa-user-plus"></i> Crear cuenta</router-link></li>
+              <li class="lihamburguesa"><router-link to="/pruebaLogin"><i class="fas fa-sign-in-alt"></i> Ingresar Usuario</router-link></li>
 
               <li id="lilinea">-----------------------------------------</li>
-              <li class="lihamburguesa"><router-link to="/registroProducto">Registrar Producto</router-link></li>
-              
-              <li class="lihamburguesa"><router-link to="/modificarProducto">Modificar Producto</router-link></li>
-              <li class="lihamburguesa"><router-link to="/eliminarProducto">Eliminar Producto</router-link></li>
-              <li class="lihamburguesa"><router-link to="/inventario">Producto Despachados</router-link></li>
-              <li class="lihamburguesa"><router-link to="/registroUsuario">Crear cuenta</router-link></li>
-              <li class="lihamburguesa"><router-link to="/pruebaLogin">Ingresar Usuario</router-link></li>
-
-              <li class="menuInfoCliente" @click="abrirModalUsuario">
-                USUARIO
-              </li>
-             
-             
-              <li id="lilinea">-----------------------------------------</li>
-
-              <!--<li class="infocliente">{{ nombreUsuario }}<br> {{ emailUsuario }}</li>-->
             </ul>
           </nav>
         </div>
-
-
       </ul>
     </nav>
 
@@ -501,15 +675,7 @@ export default {
       <div class="modal__container" role="dialog" aria-labelledby="modalUsuarioTitle">
         <h2 id="modalUsuarioTitle">Editar Información del Usuario</h2>
         <form class="modal__form">
-          <div class="form-group">
-            <label for="idUsuario">ID:</label>
-            <input
-              type="text"
-              id="idUsuario"
-              v-model="datosUsuario.id"
-              disabled
-            />
-          </div>
+          
           <div class="form-group">
             <label for="nombreUsuario">Nombre:</label>
             <input
@@ -524,7 +690,7 @@ export default {
             <input
               type="email"
               id="emailUsuario"
-              v-model="datosUsuario.email"
+              v-model="datosUsuario.id"
               placeholder="Ingresa tu email"
             />
           </div>
@@ -532,6 +698,8 @@ export default {
             <label for="emailUsuario">Dirección:</label>
             <input
               type="text"
+              v-model="datosUsuario.direccion"
+              
               
               placeholder="Ingresa tu Dirección"
             />
@@ -541,6 +709,7 @@ export default {
             <input
                 type="text"
                 id="Telefono"
+                v-model="datosUsuario.telefono"
                 placeholder="Ingresa tu número "
                 maxlength="20"
               />
@@ -551,14 +720,15 @@ export default {
             <input
                 type="text"
                 id="tarjetaUsuario"
+                v-model="datosUsuario.tarjetaCredito"
                 placeholder="Ingresa tu número de tarjeta"
                 maxlength="16"
               />
           </div>
           
           <div class="form-actions">
-            <button type="button" class="btn btn-save" @click="guardarCambios">Guardar Cambios</button>
-            <button type="button" class="btn btn-cancel" @click.prevent="cerrarModalUsuario">Cancelar</button>
+            <button type="button" class="btn btn-save" @click="guardarCambiosUsuario">Guardar Cambios</button>
+            <button type="button" class="btn btn-cancel" @click="cerrarModalUsuario">Cancelar</button>
           </div>
         </form>
       </div>
@@ -696,7 +866,7 @@ export default {
                     />
                     <button type="button" @click.stop="incrementarCantidad(producto)">+</button>
                   </div>
-                  <button class="btn" @click.stop="comprar(producto)">Compra</button>
+                  <button class="btn" @click.stop="abrirModal(producto)">Compra</button>
                   <button class="btn" @click.stop="carritoCompra(producto)">🛒</button>
                 </div>
               </li>
@@ -782,6 +952,53 @@ export default {
       <div class="credit">&copy; 2024 Mascotas. Todos los derechos reservados.</div>
     </section>
     
+</div>
+
+  <div v-if="modalAbierto" class="modal-overlay">
+    <div class="modal-contenido">
+      <button class="cerrar" @click="cerrarModal">✖</button>
+      
+      <h2>Pago con Tarjeta</h2>
+       <p><strong>Producto:</strong> {{ productoSeleccionado?.nombre }}</p>
+      <p><strong>Precio:</strong> ${{ productoSeleccionado?.precio }}</p>
+
+      <div class="tarjeta-simulada">
+        
+        <div class="numero">
+          <label>Número</label>
+          <input type="text"  v-model="memoria.tarjetaCredito" placeholder="Número de Tarjeta" maxlength="16" required />
+        </div>
+        <div class="titular">
+          <label>Titular</label>
+          <input type="text" v-model="memoria.nombre" placeholder="Nombre del Titular" required />
+        </div>
+        <div class="fila">
+          <div class="vencimiento">
+            <label>Vencimiento</label>
+            <input type="text" placeholder="MM/YY" maxlength="5" required />
+          </div>
+          <div class="cvv">
+            <label>CVV</label>
+            <input type="text" placeholder="CVV" maxlength="3" required />
+          </div>
+        </div>
+      </div>
+      <!-- Si hay dirección en memoria -->
+      <button 
+        v-if="memoria.direccion" 
+        class="btn btn-comprar" 
+        @click="comprar(productoSeleccionado)">
+        💳 Comprar
+      </button>
+
+      <!-- Si no hay dirección en memoria -->
+      <button 
+        v-else 
+        class="btn btn-comprar" 
+        @click="cerrarModal(); abrirModalUsuario()">
+        💳 Comprar
+      </button>
+    </div>
   </div>
   
 </template>
@@ -793,6 +1010,213 @@ export default {
   padding: 0;
 }
 
+
+.li_dos{
+  font-size: 1.5em;
+ 
+}
+
+/* Estilos categoria nav */
+.contenedor-categorias {
+  position: relative;
+  display: inline-block;
+}
+
+.btn-categorias {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.3s ease;
+}
+
+.btn-categorias:hover {
+  background-color: #2980b9;
+}
+
+.btn-categorias i {
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+.dropdown-categorias {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: #fff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 5px;
+  margin-top: 10px;
+  padding: 10px 0;
+  width: 200px;
+  display: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.contenedor-categorias:hover .dropdown-categorias {
+  display: block;
+  opacity: 1;
+  transform: translateY(10px);
+}
+
+/* Estilo de cada categoría */
+.item-categoria {
+  background-color: #fff;
+  color: #333;
+  padding: 10px 20px;
+  border: none;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 14px;
+}
+
+.item-categoria:hover {
+  background-color: #f0f0f0;
+}
+
+.item-categoria.activo {
+  background-color: #3498db;
+  color: white;
+}
+
+.item-categoria:focus {
+  outline: none;
+}
+
+/* Animación para abrir/cerrar el menú */
+.dropdown-categorias {
+  display: none;
+}
+
+.contenedor-categorias.active .dropdown-categorias {
+  display: block;
+}
+/* Navegador*/
+.navbar {
+  background-color: #ffffff;
+  padding: 10px 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-list {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  list-style: none;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+
+
+.form-buscador {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  background-color: #f1f1f1;
+  border-radius: 25px;
+  overflow: hidden;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
+}
+
+.input-buscador {
+  flex: 1;
+  padding: 10px 15px;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  background-color: transparent;
+}
+
+.boton-buscador {
+  padding: 10px 20px;
+  border: none;
+  background-color: #007bff;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.boton-buscador:hover {
+  background-color: #0056b3;
+}
+
+/* Modal de pago*/
+.modal-overlay  {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-contenido {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+}
+
+.cerrar {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+}
+/*paginacion */
+.paginacion {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2rem;
+}
+
+.boton-paginacion {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  min-width: 40px;
+}
+
+.boton-paginacion:hover:not(:disabled) {
+  background-color: #e0f7fa;
+}
+
+.boton-paginacion:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.boton-paginacion.activo {
+  background-color: #4caf50;
+  color: white;
+  border-color: #4caf50;
+}
+
 .card-link {
   display: block;
   text-decoration: none;
@@ -801,6 +1225,7 @@ export default {
 
 
 .menuInfoCliente {
+  font-size: 1.2em;
   cursor: pointer; 
   transition: background-color 0.3s ease, color 0.3s ease; 
 }
@@ -989,8 +1414,10 @@ input[type=number]::-webkit-outer-spin-button {
 }
 #hamburguesa{
     color: whitesmoke;
+    
     position: absolute;
     right: 20px;
+    top: 15%;
   }
 #hamburguesa, #cerrarHamburguesa {
     font-size: 3rem;
@@ -1127,7 +1554,7 @@ input[type=number]::-webkit-outer-spin-button {
 .left-section, .right-section  {
   width: 100%; /* Ocupa el 100% del contenedor padre */
   padding: 10px;
-  text-align: center;
+  text-align: left;
 }
 .pie_estadistico {
   height: 500px;
@@ -1467,6 +1894,117 @@ p {
   z-index: 10;  /* Ajusta el z-index según lo necesario */
 }
 
+/* Modal de pago */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7); /* Más oscuro para mayor contraste */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
 
+.modal-contenido {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 15px; /* Bordes más redondeados */
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3); /* Sombra más pronunciada */
+  animation: fadeIn 0.3s ease-in-out; /* Animación de entrada */
+}
+
+.cerrar {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  cursor: pointer;
+  color: #333;
+  transition: color 0.3s ease;
+}
+
+.cerrar:hover {
+  color: #dd0808; /* Color rojo al pasar el mouse */
+}
+
+.tarjeta-simulada {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Espaciado uniforme entre los campos */
+}
+
+.tarjeta-simulada label :scope {
+  font-weight: bold;
+  font-size: 14px;
+  color: #555;
+}
+
+.tarjeta-simulada input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.tarjeta-simulada input:focus {
+  border-color: #007bff; /* Azul al enfocar */
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); /* Resaltado al enfocar */
+}
+
+.tarjeta-simulada .fila {
+  display: flex;
+  gap: 10px;
+}
+
+.tarjeta-simulada .fila > div {
+  flex: 1; /* Divide el espacio equitativamente */
+}
+
+.btn-comprar {
+  margin-top: 20px;
+  background-color: #28a745;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-comprar:hover {
+  background-color: #218838;
+  transform: scale(1.05); /* Efecto de agrandamiento */
+}
+
+.btn-comprar:active {
+  background-color: #1e7e34;
+  transform: scale(0.95); /* Efecto de reducción al hacer clic */
+}
+
+/* Animación de entrada */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 
 </style>
