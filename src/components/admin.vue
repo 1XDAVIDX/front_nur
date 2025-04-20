@@ -338,7 +338,7 @@ export default {
     const datosUsuario = ref({}); // Almacena los datos del usuario
 
     const abrirModalUsuario = () => {
-      if (memoria?.direccion == '') {
+      if (memoria?.direccion == null) {
             Swal.fire({
               icon: "warning",
               title: "Actualiza tus datos",
@@ -449,12 +449,18 @@ export default {
     const enviarBusqueda = () => {
       consultaProducto();
     };
+
+    const productosCasiAgotados= ref([]);
+    const productosAgotados= ref([]);
+    console.log(productosCasiAgotados.value)
+    console.log(productosAgotados.value)
     // Función para consultar productos desde la API
     const consultaProducto = async () => {
       try {
         const respuesta = await axios.get("http://127.0.0.1:8000/consultarProductos");
         data.value = respuesta.data.map((item) => ({
           ...item,
+          stock: Number(item.stock),
           cantidadProducto: 1, // Agregar cantidad inicial
         }));
 
@@ -469,6 +475,14 @@ export default {
           data.value = data.value.filter((producto) => producto.nombre.toLowerCase().includes(busquedaBarraadmin.value.toLowerCase()));
           busquedaBarraadmin.value = ''; 
         }
+
+         // Llenar las variables productosCasiAgotados y productosAgotados
+        console.log("Productos antes del filtro:", data.value);
+        productosCasiAgotados.value = data.value.filter((producto) => producto.stock > 0 && producto.stock <= 5);
+        productosAgotados.value = data.value.filter((producto) => producto.stock === 0);
+        console.log("Productos casi agotados:", productosCasiAgotados.value);
+        console.log("Productos agotados:", productosAgotados.value);
+
 
 
         actualizarPaginadoProductos(); // Actualizar los productos paginados
@@ -525,9 +539,17 @@ export default {
     }
 
     const mostrarCategorias = ref(false)
+    const mostrarNotificaciones = ref(false); // Controla si la nube está visible
+    const mensajes = ref([
+      
+    ]); 
 
 
     return {
+      productosCasiAgotados,
+      productosAgotados,
+      mostrarNotificaciones,
+      mensajes,
       memoria,
       enviarBusqueda,
       busquedaBarraadmin,
@@ -644,7 +666,42 @@ export default {
         </li>
 
 
-        <li class="li_dos"><router-link to="/notificaciones"><i class="fas fa-bell"></i> </router-link></li>
+        <li class="li_dos contenedor-notificaciones">
+          <button @click="mostrarNotificaciones = !mostrarNotificaciones" class="btn-notificaciones">
+            <i class="fas fa-bell"></i>
+          </button>
+          <div v-if="mostrarNotificaciones" class="nube-notificaciones">
+            <h3>Notificaciones</h3>
+            <ul>
+              <li v-for="(mensaje, index) in mensajes" :key="index">
+                {{ mensaje }}
+              </li>
+              <div class="productos-stock">
+                <div class="productos-casi-agotados">
+                  <h3>Productos Casi Agotados</h3>
+                  <ul>
+                    <li v-for="producto in productosCasiAgotados" :key="producto.id_producto">
+                      <strong>ID:</strong> {{ producto.id_producto }}<br />
+                      <strong>Nombre:</strong> {{ producto.nombre }}<br />
+                      <strong>Stock:</strong> {{ producto.stock }}
+                    </li>
+                  </ul>
+                </div>
+
+                <div class="productos-agotados">
+                  <h3>Productos Agotados</h3>
+                  <ul>
+                    <li v-for="producto in productosAgotados" :key="producto.id_producto">
+                      <strong>ID:</strong> {{ producto.id_producto }}<br />
+                      <strong>Nombre:</strong> {{ producto.nombre }}<br />
+                      <strong>Stock:</strong> {{ producto.stock }}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </ul>
+          </div>
+        </li>
         <li class="li_dos"><router-link to="/whasappControl"><i class="fab fa-whatsapp"></i> </router-link></li>
         <!-- Menú hamburguesa -->
         <div>
@@ -1010,6 +1067,73 @@ export default {
   padding: 0;
 }
 
+
+.contenedor-notificaciones {
+  position: relative;
+}
+
+.btn-notificaciones {
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  cursor: pointer;
+  color: white;
+  transition: color 0.3s ease;
+}
+
+.btn-notificaciones:hover {
+  color: #007bff;
+}
+
+.nube-notificaciones {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  width: auto; /* Ajusta el ancho automáticamente según el contenido */
+  max-width: 500px; /* Ancho máximo */
+  min-width: 500px; /* Ancho mínimo */
+  height: auto; /* Ajusta la altura automáticamente según el contenido */
+  max-height: 400px; /* Altura máxima */
+  overflow-y: auto; /* Agrega scroll si el contenido excede la altura máxima */
+  padding: 15px;
+  z-index: 1000;
+}
+
+.nube-notificaciones h3 {
+  margin: 0 0 10px;
+  font-size: 1.2em;
+  color: #333;
+}
+
+.nube-notificaciones ul {
+  display: flex;
+  flex-direction: column; /* Alinea los elementos en columna */
+  gap: 10px; /* Espacio entre los elementos */
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.nube-notificaciones li {
+  display: block; /* Asegura que cada elemento ocupe toda la línea */
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  font-size: 0.9em;
+  color: #555;
+}
+
+.nube-notificaciones li:last-child {
+  border-bottom: none; /* Elimina la línea del último elemento */
+}
+
+.nube-notificaciones li:hover {
+  background-color: #f9f9f9;
+  cursor: pointer;
+}
 
 .li_dos{
   font-size: 1.5em;

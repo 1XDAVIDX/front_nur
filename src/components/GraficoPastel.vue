@@ -15,6 +15,7 @@ export default {
   setup(props) {
     const grafico = ref(null);
     let chartInstance = null;
+    
 
     const dibujarGrafico = () => {
       if (!grafico.value || !props.productosVendidos.length) return;
@@ -24,9 +25,28 @@ export default {
         window.addEventListener("resize", () => chartInstance.resize());
       }
 
+      const productosOrdenados = [...props.productosVendidos].sort((a, b) => b.cantidad - a.cantidad);
+      const top3 = productosOrdenados.slice(0, 5).map(p => p.nombre_producto);
+
+      const data = props.productosVendidos.map(p => ({
+        name: p.nombre_producto,
+        value: p.cantidad,
+        label: {
+          show: true,
+          position: 'outside',
+          formatter: '{b}', // solo el nombre
+          fontSize: 13,
+          color: '#333',
+        },
+        labelLine: {
+          show: true,
+          length: 20,
+          length2: 10,
+        },
+      }));
+
       const opciones = {
         title: {
-          //text: "Productos más vendidos",
           left: "center",
           padding: 0,
           textStyle: {
@@ -36,13 +56,13 @@ export default {
           },
         },
         tooltip: {
-          
           trigger: "item",
           formatter: "{b}: {c} ({d}%)",
         },
         legend: {
+          data: top3, // solo los 3 más vendidos
           orient: "horizontal",
-          bottom: 10,
+          top: 0,
           textStyle: {
             fontSize: 13,
             color: "#666",
@@ -55,31 +75,12 @@ export default {
             radius: ["40%", "75%"],
             avoidLabelOverlap: false,
             label: {
-              show: window.innerWidth > 500,
-              formatter: '{name|{b}}',
-              rich: {
-                name: {
-                  fontSize: 13,
-                  color: '#333',
-                  lineHeight: 18,
-                  width: 100, // controla el ancho máximo de texto
-                  overflow: 'break',
-                },
-                value: {
-                  fontSize: 12,
-                  color: '#999',
-                },
-              },
+              show: false, // desactivamos el global para usar por ítem
             },
             labelLine: {
-              length: 20,
-              length2: 10,
-              smooth: true,
+              show: false, // también el global
             },
-            data: props.productosVendidos.map(p => ({
-              name: p.nombre_producto,
-              value: p.cantidad
-            })),
+            data,
             emphasis: {
               scale: true,
               itemStyle: {
@@ -106,7 +107,7 @@ export default {
 
 <style scoped>
 .grafico-container {
-  
+ 
   max-width: 800px;
   margin: auto;
   padding: 1rem;
