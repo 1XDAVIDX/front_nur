@@ -5,6 +5,9 @@ import { useRouter } from 'vue-router';
 import GraficoPastel from "@/components/GraficoPastel.vue"; 
 import Swal from 'sweetalert2';
 import '@fortawesome/fontawesome-free/css/all.css';
+import carrusel1 from '@/components/img/Banner1.webp'
+import carrusel2 from '@/components/img/Banner2.jpeg'
+//import carrusel3 from '@/components/img/carrusel3.jpg'
 
 export default {
   
@@ -12,13 +15,24 @@ export default {
     GraficoPastel  
   },
   data(){
+    
     return {
         menuAbierto: false,
         modalAbierto: false,
-        productoSeleccionado: null
-        
+        productoSeleccionado: null,
+        imagenesCarrusel: [carrusel1, carrusel2],
+        slideActual: 0,
+        intervalo: null
+
       };
   },
+  mounted() {
+    this.iniciarCarrusel();
+  },
+  beforeUnmount() {
+    clearInterval(this.intervalo);
+  },
+  
   methods: {
     
       irACasa(producto) {
@@ -31,17 +45,34 @@ export default {
         this.productoSeleccionado = producto;
         this.modalAbierto = true;
       },
-
       cerrarModal() {
         this.modalAbierto = false;
+      },
+      iniciarCarrusel() {
+      this.intervalo = setInterval(() => {
+        this.slideActual = (this.slideActual + 1) % this.imagenesCarrusel.length;
+      }, 2000); // cada 4 segundos
+      },
+      pausar() {
+        clearInterval(this.intervalo);
+      },
+      reanudar() {
+        this.iniciarCarrusel();
       }
+
     },
   setup() {
     
-    const memoria = JSON.parse(localStorage.getItem('access_token'))
+    const memoriaRaw = localStorage.getItem('access_token');
+    const memoria = memoriaRaw ? JSON.parse(memoriaRaw) : null;
+    console.log(memoriaRaw)
     const idlocalestore = memoria?.id_usuario;
     const nombreUsuario = memoria?.nombre
+    const tarjetaUsuario = memoria?.tarjetaCredito ;
+    const telefonoUsuario = memoria?.telefono ;
+    const direccionUsuario = memoria?.direccion;
     const emailUsuario = memoria?.email
+    const rolUsuario = memoria?.rol
     const router = useRouter();
     const data = ref([]);
     
@@ -97,6 +128,17 @@ export default {
 
     const pedidoHecho = async (id_compra, id_usuario) =>{
             try {
+              Swal.fire({
+                title: "Procesando...",
+                text: "Por favor, espera mientras procesamos tu pedido.",
+                allowOutsideClick: false,
+                didOpen: () => {
+                  Swal.showLoading(); 
+                },
+              });
+
+
+
               const respuesta =await axios.delete(`http://127.0.0.1:8000/completada/${id_compra}/${id_usuario}`);
               factura.value = respuesta.data
               console.log("ok",factura.value)
@@ -115,12 +157,26 @@ export default {
                     title:"Datos no son correctos"
                 })
             }
+          
+
     }
+
+
     // despachar pedido multiple
     const facturaultiple = ref({})
 
     const pedidoHechoMultiple = async (id_usuario) => {
       try {
+
+        Swal.fire({
+                title: "Procesando...",
+                text: "Por favor, espera mientras procesamos tu pedido.",
+                allowOutsideClick: false,
+                didOpen: () => {
+                  Swal.showLoading(); 
+                },
+        });
+
         const respuesta = await axios.delete(`http://127.0.0.1:8000/completadas/${id_usuario}`);
         facturaultiple.value = respuesta.data;
     
@@ -139,7 +195,9 @@ export default {
                  .reduce((sum, c) => sum + c.total, 0)
                  .toLocaleString()}
              `
-           });
+           }).then(() =>{
+                router.go(0);
+              });
         } else {
            console.error("La respuesta no contiene compras_completadas:", facturaultiple.value);
         }
@@ -167,10 +225,20 @@ export default {
                     
                 })
       } catch (error) {
-                Swal.fire({
-                    icon:"error",
-                    text:"Error al comprar"
-        })
+        if (memoria?.id_usuario) {
+                  Swal.fire({
+                    icon: "error",
+                    title: "Error",
+                    text: "No se pudo agregar al carrito.",
+                  });
+                } else {
+                  Swal.fire({
+                    icon: "warning",
+                    title: "Iniciar sesión",
+                    text: "Necesitas iniciar sesión para agregar productos al carrito.",
+                  });
+                  
+                }
       }
     }
 
@@ -208,43 +276,71 @@ export default {
       }
     };
 
+
     // comprar producto 
+    const datosTarjeta = ref({
+      nombre: memoria?.nombre,
+      tarjetaCredito: memoria?.tarjetaCredito,
+      vencimiento: "",
+      cvv: ""
+    });
+
     const comprar = async (producto) => {
+      const { tarjetaCredito, nombre, vencimiento, cvv } = datosTarjeta.value;
+
+      if (!tarjetaCredito || !nombre || !vencimiento || !cvv) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Campos incompletos',
+          text: 'Por favor, completa todos los campos antes de continuar.',
+        });
+        return;
+      }
+
       try {
         const compraProducto = {
           id_producto: producto.id_producto,
           id_usuario: idlocalestore,
           cantidad: producto.cantidadProducto,
+          
+
         };
+
+        Swal.fire({
+                title: "Procesando...",
+                text: "Por favor, espera mientras procesamos tu pedido.",
+                allowOutsideClick: false,
+                didOpen: () => {
+                  Swal.showLoading(); 
+                },
+        });
+        
 
         const respuesta = await axios.post("http://127.0.0.1:8000/compra", compraProducto);
         Swal.fire({
           icon: "success",
           title: "Compra Exitosa",
-          html: `
-            <b>ID Compra:</b> ${respuesta.data.id_compra} <br>
-            <b>ID Producto:</b> ${respuesta.data.id_producto} <br>
-            <b>Nombre Producto:</b> ${respuesta.data.nombre_producto} <br>
-            <b>Descripción:</b> ${respuesta.data.descripcion} <br>
-            <b>Precio:</b> ${respuesta.data.precio} <br>
-            <b>Stock:</b> ${respuesta.data.stock} <br>
-            <b>Total:</b> ${respuesta.data.total}
-          `,
+          text:"Revisa tu bandeja de correo para ver el detalle de tu compra, en la notificaciones  estan detalles de tu envio",
         }).then(()=> { router.go(0);});
       } catch (error) {
         Swal.fire({
           icon: "error",
-          text: "AQui"
+          text: "Error al comprar"
         });
       }
     };
+
+
     // apache pie grafico
+
     const grafico = ref([]);
     const productosVendidos = ref([]);
+
     const datosGrafico = async () => {
       try {
         const respuesta = await axios.get("http://127.0.0.1:8000/compra_grafico_ver");
         grafico.value = respuesta.data;
+
         // Procesar productos más vendidos
         const contador = {};
         grafico.value.forEach(p => {
@@ -254,61 +350,140 @@ export default {
             contador[p.id_producto] = { nombre_producto: ` ${p.nombre_producto}`, cantidad: p.cantidad };
           }
         });
+
         productosVendidos.value = Object.values(contador);
+        
       } catch (error) {
         console.log("No se cargaron los datos", error);
       }
     };
+
+    
+
+    
+
     // boton de whatsapp
+    
     function enviarMensajeWhatsapp() {
-      const numero = "573508381030";
-      const mensaje =encodeURIComponent("Hola, quiero ver el catalogo");
+      const numero = "573123848279";
+      const mensaje =encodeURIComponent("Tienes un catalogo?");
       const url = `https://wa.me/${numero}?text=${mensaje}`;
       window.open(url, "_blank");
     }
 
     // modal usuario
+
     const modalUsuarioAbierto = ref(false); // Controla si el modal está abierto
     const datosUsuario = ref({}); // Almacena los datos del usuario
+
     const abrirModalUsuario = () => {
+      if (memoria?.direccion == null) {
+            Swal.fire({
+              icon: "warning",
+              title: "Actualiza tus datos",
+              text: "No tienes datos necesarios, por favor ingresa una dirección antes de continuar.",
+            });
+      }
       datosUsuario.value = {
-        nombre: nombreUsuario,
-        email: emailUsuario,
         id: idlocalestore,
+        nombre: nombreUsuario,
+        direccion: direccionUsuario,
+        tarjetaCredito: tarjetaUsuario,
+        telefono: telefonoUsuario,
+        
+        
+      
+        
       };
+      
       modalUsuarioAbierto.value = true;
     };
+
+    const guardarEnLocalStorage = () => {
+      // Obtener los datos existentes en localStorage
+      const datosExistentesRaw = localStorage.getItem('access_token');
+      const datosExistentes = datosExistentesRaw ? JSON.parse(datosExistentesRaw) : {};
+
+      // Actualizar solo los tres datos específicos
+      const datosActualizados = {
+        ...datosExistentes, // Mantener los datos existentes
+        direccionUsuario: datosUsuario.value.direccion,
+        tarjetaUsuario: datosUsuario.value.tarjetaCredito,
+        telefonoUsuario: datosUsuario.value.telefono,
+      };
+
+      // Guardar los datos actualizados en localStorage
+      localStorage.setItem('access_token', JSON.stringify(datosActualizados));
+
+      console.log('Datos actualizados en localStorage:', datosActualizados);
+    };
+
+    
+
+    
+
+
+
+    const guardarCambiosUsuario = async ()=>{
+       try {         
+          const respuesta = await axios.put(`http://127.0.0.1:8000/editar/usuario/${idlocalestore}`, datosUsuario.value);
+          
+          guardarEnLocalStorage();
+          
+
+          Swal.fire({
+          icon: "success",
+          title: "Datos Actualizados",
+          
+        }).then(()=> { cerrarModalUsuario();});
+        } catch (error) {
+          console.error("Error al guardar los cambios usuario", error);
+        }
+      }
+
     const cerrarModalUsuario = () => {
       modalUsuarioAbierto.value = false;
     };
+
     
     // categorias
     const categorias = ref(['Todos', 'Alimentos', 'accesorios', 'juguetes']);
     const categoriaSeleccionada = ref('Todos');
+
     const seleccionarCategoria = (categoria) => {
       categoriaSeleccionada.value = categoria;
       consultaProducto();
     };
+
     // Variables reactivas
+    
     const productosPorPagina = 6; // Número de productos por página
     const paginaActualProductos = ref(1); // Página actual
     const productosPaginados = ref([]); // Productos que se mostrarán en la página actual
+
     // Total de páginas calculado dinámicamente
     const totalPaginasProductos = computed(() =>
       Math.ceil(data.value.length / productosPorPagina)
     );
+
     // Función para actualizar los productos paginados
     const actualizarPaginadoProductos = () => {
       const inicio = (paginaActualProductos.value - 1) * productosPorPagina;
       const fin = inicio + productosPorPagina;
       productosPaginados.value = data.value.slice(inicio, fin);
     };
+
     // Función para cambiar de página
     const cambiarPaginaProductos = (nuevaPagina) => {
       if (nuevaPagina >= 1 && nuevaPagina <= totalPaginasProductos.value) {
         paginaActualProductos.value = nuevaPagina;
         actualizarPaginadoProductos();
       }
+    };
+
+    const busquedaBarraadmin = ref('');
+    const enviarBusqueda = () => {
+      consultaProducto();
     };
     // Función para consultar productos desde la API
     const consultaProducto = async () => {
@@ -318,34 +493,42 @@ export default {
           ...item,
           cantidadProducto: 1, // Agregar cantidad inicial
         }));
+
         // Filtrar productos por categoría
-        if (categoriaSeleccionada.value !== "Todos") {
-          data.value = data.value.filter(
-            (item) => item.categotia === categoriaSeleccionada.value
-          );
+        if(busquedaBarraadmin.value.trim() === ''){
+          if (categoriaSeleccionada.value !== 'Todos') {
+            data.value = data.value.filter((producto) => producto.categotia === categoriaSeleccionada.value);
+            busquedaBarraadmin.value = ''; 
+          }
+
+        }else{
+          data.value = data.value.filter((producto) => producto.nombre.toLowerCase().includes(busquedaBarraadmin.value.toLowerCase()));
+          busquedaBarraadmin.value = ''; 
         }
+
+
         actualizarPaginadoProductos(); // Actualizar los productos paginados
       } catch (error) {
         console.log("No se cargaron los datos", error);
       }
     };
+
+    
+
     const getImagenUrl = (path) =>{
       return `http://127.0.0.1:8000/${path}`;
     }
+    
+
     onMounted(() =>  {
       consultaProducto(),
       facturapedido(),
-      datosGrafico() 
+      datosGrafico(),
+      datosInventario();
+          
       }
     );
-    // Comentarios de clientes
-    const comentarios = ref([
-      { nombre: 'Juan Pérez', comentario: 'Excelente servicio, productos de alta calidad.' },
-      { nombre: 'Maria García', comentario: 'Muy satisfecha con mi compra, atención rápida y amable.' },
-      { nombre: 'Carlos Ramírez', comentario: 'Gran variedad de productos para todas las mascotas.' },
-      { nombre: 'Sofía López', comentario: 'El envío fue rápido y los productos llegaron en buen estado.' },
-      { nombre: 'Fernando González', comentario: 'Buenos precios y excelente atención al cliente.' }
-    ]);
+
     const onComprar = (productoId) => {
       router.push({ path: '/comprar', query: { productoId: productoId } });
     }
@@ -356,6 +539,42 @@ export default {
     const onAgregarCarrito = (productoId) =>{
       router.push({ path: '/agregarCarrito', query: { productoId: productoId } });
     }
+    const cerrarSesion = () => {
+      Swal.fire({
+        title: 'Cerrando sesión...',
+       
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+        timer: 2000,
+        timerProgressBar: true,
+      }).then(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+        router.push({ path: '/cliente' }).then(() => {
+          location.reload();
+        });
+      });
+    };
+    const ValidacionSecion = () => {
+      Swal.fire({
+        title: 'Necesitas iniciar sesión',
+       
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+        timer: 2000,
+        timerProgressBar: true,
+      }).then(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        router.push({ path: '/pruebaLogin' });
+      });
+    };
+
     //const cantidadCompra = ref(1)
     const incrementarCantidad = ( producto ) =>{
       producto.cantidadProducto++;
@@ -365,16 +584,89 @@ export default {
         producto.cantidadProducto--;
       }
     }
+    const mostrarCategorias = ref(false)
+    const inventario = ref([]);
+    const mostrarNotificaciones = ref(false);
+    const mensajes = ref(["Hola 👋"]); // Puedes cambiarlo por tus propios mensajes
+
+   
+
+    const datosInventario = async () => {
+      try {
+        const respuesta = await axios.get('http://127.0.0.1:8000/compraTerminado');
+        inventario.value = respuesta.data.filter(item => item.id_usuario === idlocalestore);
+      } catch (error) {
+        console.log("No se cargaron los datos ", error);
+      }
+    };
+
+    const comprobarEmail = ref({
+            destinatario: "davidgelvez122j@gmail.com",
+            asunto: "",
+            mensaje: "",
+    });
+    const apiEmail = async () => {
+            try {
+               
+                const respuesta = await axios.post("http://127.0.0.1:8000/enviar-email", comprobarEmail.value);
+                console.log(respuesta.data);
+                Swal.fire({
+                    icon: "success",
+                    title: "Correo enviado",
+                    
+                }).then(() => {
+                   router.go(0);
+                });
+            } catch (error) {
+                console.error("Error al enviar el correo", error);
+                Swal.fire({
+                    icon: "error",
+                    title: "Error",
+                    text: "No se pudo enviar el correo. Intente nuevamente.",
+                });                
+            }
+    };
+    const copiarCorreo = () => {
+      const email = comprobarEmail.value.destinatario; // Obtén el correo
+      if (email) {
+        navigator.clipboard.writeText(email).then(() => {
+          Swal.fire({
+            icon: 'success',
+            title: 'Correo Copiado',
+            text: 'El correo electrónico ha sido copiado al portapapeles.',
+          });
+        }).catch(err => {
+          console.error('Error al copiar el correo:', err);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo copiar el correo al portapapeles.',
+          });
+        });
+      }
+    };
 
     return {
+      copiarCorreo,
+      comprobarEmail,
+      apiEmail,
+      datosTarjeta,
+      ValidacionSecion,
+      inventario,
+      mensajes,
+      mostrarNotificaciones,
+      cerrarSesion,
+      memoria,
+      enviarBusqueda,
+      busquedaBarraadmin,
+      mostrarCategorias,
       data,
-      comentarios,
       getImagenUrl,
       pedido,
       usuariosPaginados,
       paginaActual,
       totalPaginas,
-      cambiarPagina, 
+      cambiarPagina,
       facturapedido,
       productosVendidos,
       //onComprar,
@@ -403,6 +695,7 @@ export default {
       paginaActualProductos,
       totalPaginasProductos,
       cambiarPaginaProductos,
+      guardarCambiosUsuario,
 
     };
   }
@@ -410,60 +703,124 @@ export default {
 </script>
 
 <template>
-    <!-- Barra de navegación secundaria -->
-    <nav class="navbar">
-      <ul>     
-        <li><router-link to="/pruebaLogin">Crear cuenta</router-link></li>
-        <li><router-link to="/pruebaLogin">Ingresar</router-link></li>
-        <div>
-          <span id="hamburguesa" @click="toggleMenu" class="far fa-user-circle"> </span>
-          <nav :class="['menuHamburguesa', { openHamburguesa: menuAbierto }]">
-            <span id="cerrarHamburguesa" @click="toggleMenu">&#128938;</span>
-            <ul >
-              <li id="libienvenido">¡Bienvenido!</li>
-              <li class="infocliente">{{ nombreUsuario }}</li>
-              <li id="lilinea">-----------------------------------------</li>
-              <li class="lihamburguesa"><router-link to="/registroProducto">Registrar Producto</router-link></li>
-              <li class="lihamburguesa"><router-link to="/modificarProducto">Modificar Producto</router-link></li>
-              <li class="lihamburguesa"><router-link to="/eliminarProducto">Eliminar Producto</router-link></li>
-              <li class="lihamburguesa"><router-link to="/inventario">Producto Despachados</router-link></li>
-              <li class="lihamburguesa"><router-link to="/registroUsuario">Crear cuenta</router-link></li>
-              <li class="lihamburguesa"><router-link to="/pruebaLogin">Ingresar Usuario</router-link></li>
-              <li class="menuInfoCliente" @click="abrirModalUsuario">                USUARIO
-              </li>
-              <li id="lilinea">-----------------------------------------</li>
-              <!--<li class="infocliente">{{ nombreUsuario }}<br> {{ emailUsuario }}</li>-->
-            </ul>
-          </nav>
-        </div>
-      </ul>
-    </nav>
-    <header>
-      <div class="hero">
-        <div class="text-container">
-            <button class="btn primary">CONTÁCTENOS</button>
-            <button class="btn secondary">RESERVAR AHORA</button>
-        </div>
-        <div class="traveler">
-          <img src="./img/Perro.png" alt="Viajera" />
-        </div>
-      </div>
-      <img src="./img/paisaje2.jpg" alt="Fondo de mascotas" class="logo-large" />
-    </header>
+  <div class="box">
+    <!-- Header principal -->
+     <header class="pet-hero">
+         <div class="hero-curve"></div>
+     
+         <!-- Huellitas decorativas -->
+         <img src="./img/Perro.png" class="paw paw-top-left" alt="paw" />
+         <div class="hero-text">
+           <p class="subtitle">MASCOTAS</p>
+           <h1 class="title">Los Mejores Accesorios para tu Mascota<br />Querida y Bien Cuidada</h1>
+           <p class="description">
+           Descubre una amplia gama de accesorios de alta calidad que harán la vida de tu mascota más cómoda y divertida.
+           </p>
+           <button class="shop-btn">COMPRAR AHORA</button>
+   
+         </div>
+      </header>
+   
 
-    <section class="modal" v-if="modalUsuarioAbierto" aria-hidden="!modalUsuarioAbierto">
+<nav class="navbar">
+  <div class="navbar-container">
+    <!-- IZQUIERDA: Categorías + Buscador -->
+    <div class="navbar-left">
+      <!-- Categorías -->
+      <div class="contenedor-categorias relative">
+        <button @click="mostrarCategorias = !mostrarCategorias" class="btn-categorias">
+          Categorías <i class="fas fa-chevron-down ml-1"></i>
+        </button>
+        <ul v-if="mostrarCategorias" class="dropdown-categorias">
+          <li v-for="categoria in categorias" :key="categoria">
+            <button 
+              @click="seleccionarCategoria(categoria); mostrarCategorias = false"
+              :class="{ activo: categoria === categoriaSeleccionada }"
+              class="item-categoria">
+              {{ categoria }}
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Buscador -->
+      <div class="contenedor-buscador">
+        <form @submit.prevent="enviarBusqueda" class="form-buscador">
+          <input
+            type="text"
+            v-model="busquedaBarraadmin"
+            placeholder="Buscar productos..."
+            class="input-buscador"
+          />
+          <button type="submit" class="boton-buscador"><i class="fas fa-search"></i></button>
+        </form>
+      </div>
+    </div>
+
+    <!-- DERECHA: Notificaciones, WhatsApp y Menú -->
+    <div class="navbar-right">
+      <li class="li_dos contenedor-notificaciones">
+        <button @click="mostrarNotificaciones = !mostrarNotificaciones" class="btn-notificaciones">
+          <i class="fas fa-bell"></i>
+        </button>
+
+        <div v-if="mostrarNotificaciones" class="nube-notificaciones">
+          <h3>🔔 Notificaciones</h3>
+
+          <ul>
+            <!-- Mensajes simples -->
+            <li v-for="(mensaje, index) in mensajes" :key="'mensaje-' + index">
+              {{ mensaje }}
+            </li>
+          </ul>
+
+          <!-- Productos enviados desde API -->
+          <div class="productos-stock" v-if="inventario.length > 0">
+            <div class="productos-casi-agotados">
+              <h3>📦 Productos Enviados</h3>
+              <ul>
+                <li v-for="i in inventario" :key="i.id_producto">
+                  <strong>Nombre:</strong> {{ i.nombre_producto }}<br />
+                  <strong>Fecha de envío:</strong> {{ i.fecha }}<br />
+                  <strong>Estado:</strong> {{ i.estado }}<br />
+                  <strong>Guía Transporte:</strong> {{ i.guiaTranporte }}<br />
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div v-if="mensajes.length === 0 && inventario.length === 0">
+            <p>No hay notificaciones nuevas 🔕</p>
+          </div>
+        </div>
+      </li>
+
+
+      
+      <!-- Menú Hamburguesa -->
+      <span id="hamburguesa" @click="toggleMenu" class="far fa-user-circle"></span>
+      <nav :class="['menuHamburguesa', { openHamburguesa: menuAbierto }]">
+        <span id="cerrarHamburguesa" @click="toggleMenu">&#128938;</span>
+        <ul>
+          <li id="libienvenido">¡Bienvenido!</li>
+          <li class="infocliente">{{ nombreUsuario }}</li>
+          <li id="lilinea">-----------------------------------------</li>
+          <li class="menuInfoCliente" @click="abrirModalUsuario"><i class="fas fa-user-edit"></i> PERFIL</li>
+                <li class="lihamburguesa"><router-link to="/pruebaLogin"><i class="fas fa-sign-in-alt"></i> Ingresar Usuario</router-link></li>
+          <li class="lihamburguesa"><button type="button" class="btn btn-save" @click="cerrarSesion">cerrar Sesión</button></li>
+          <li id="lilinea">-----------------------------------------</li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</nav>
+
+
+<section class="modal" v-if="modalUsuarioAbierto" aria-hidden="!modalUsuarioAbierto">
       <div class="modal__container" role="dialog" aria-labelledby="modalUsuarioTitle">
         <h2 id="modalUsuarioTitle">Editar Información del Usuario</h2>
         <form class="modal__form">
-          <div class="form-group">
-            <label for="idUsuario">ID:</label>
-            <input
-              type="text"
-              id="idUsuario"
-              v-model="datosUsuario.id"
-              disabled
-            />
-          </div>
+          
           <div class="form-group">
             <label for="nombreUsuario">Nombre:</label>
             <input
@@ -478,7 +835,7 @@ export default {
             <input
               type="email"
               id="emailUsuario"
-              v-model="datosUsuario.email"
+              v-model="datosUsuario.id"
               placeholder="Ingresa tu email"
             />
           </div>
@@ -486,6 +843,8 @@ export default {
             <label for="emailUsuario">Dirección:</label>
             <input
               type="text"
+              v-model="datosUsuario.direccion"
+              
               
               placeholder="Ingresa tu Dirección"
             />
@@ -495,6 +854,7 @@ export default {
             <input
                 type="text"
                 id="Telefono"
+                v-model="datosUsuario.telefono"
                 placeholder="Ingresa tu número "
                 maxlength="20"
               />
@@ -505,87 +865,29 @@ export default {
             <input
                 type="text"
                 id="tarjetaUsuario"
+                v-model="datosUsuario.tarjetaCredito"
                 placeholder="Ingresa tu número de tarjeta"
                 maxlength="16"
               />
           </div>
           
           <div class="form-actions">
-            <button type="button" class="btn btn-save" @click="guardarCambios">Guardar Cambios</button>
-            <button type="button" class="btn btn-cancel" @click.prevent="cerrarModalUsuario">Cancelar</button>
+            <button type="button" class="btn btn-save" @click="guardarCambiosUsuario">Guardar Cambios</button>
+            <button type="button" class="btn btn-cancel" @click="cerrarModalUsuario">Cancelar</button>
           </div>
         </form>
       </div>
     </section>
     
-    <h2>¡Bienvenido {{nombreUsuario}}!</h2>
 
-    <div class="centro_control">
-        <div class="left-section">
-            
-            <div class="pie_estadistico">
-                <GraficoPastel :productosVendidos="productosVendidos" />
-            </div>
-        </div>
-        
-    </div>
-    <div class="centro_control">
-      <div class="right-section">
-        <h2>Ventas</h2>
-        <div class="cards">
-          <ul>
-            <li v-for="[usuarioId, compras] in usuariosPaginados" :key="usuarioId">
-              <h3>------------------------------------------------------------</h3>
-              <h3>ID Usuario: {{ usuarioId }}</h3>
-              <ul>
-                <li class="card" v-for="compra in compras" :key="compra.id_compra">
-                  <b>ID Compra: {{ compra.id_compra }}</b><br>
-                  <b>ID Producto: {{ compra.id_producto }}</b><br>
-                  <b>Cantidad: {{ compra.cantidad }}</b><br>
-                  <b>Total: {{ compra.total.toLocaleString() }}</b><br>
-                  <button class="btn" @click="pedidoHecho(compra.id_compra, compra.id_usuario)">Hacer pedido</button>
-                </li>
-              </ul>
-              <h3>Total de compra: <b>${{ compras.reduce((sum, compra) => sum + compra.total, 0).toLocaleString() }}</b></h3>
-              <button class="btn-compra-multiple" @click="pedidoHechoMultiple(usuarioId)">Compra Múltiple</button>
-              <h3>------------------------------------------------------------</h3>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Paginación -->
-        <div class="paginacion">
-            <button
-              @click="cambiarPagina(paginaActual - 1)"
-              :disabled="paginaActual === 1"
-              class="boton-paginacion"
-            >
-              ⬅ Anterior
-            </button>
-
-            <button
-              v-for="pagina in totalPaginas"
-              :key="pagina"
-              @click="cambiarPagina(pagina)"
-              :class="['boton-paginacion', { activo: pagina === paginaActual }]"
-            >
-              {{ pagina }}
-            </button>
-
-            <button
-              @click="cambiarPagina(paginaActual + 1)"
-              :disabled="paginaActual === totalPaginas"
-              class="boton-paginacion"
-            >
-              Siguiente ➡
-            </button>
-          </div>
-
-      </div>
+    <section class="carrusel">
+      <div class="carrusel" @mouseenter="pausar" @mouseleave="reanudar">
+    <img :src="imagenesCarrusel[slideActual]" class="carrusel-imagen" alt="Imagen carrusel" />
     
-    </div>
-
-    <!-- <section class="modal" v-if="modalPedidoAbierto" aria-hidden="!modalPedidoAbierto">
+  </div>
+    </section>
+    
+       <!-- <section class="modal" v-if="modalPedidoAbierto" aria-hidden="!modalPedidoAbierto">
       <div class="modal__container" role="dialog" aria-labelledby="modalPedidoTitle">
         <h2 id="modalPedidoTitle">Detalles del Pedido</h2>
         <div v-if="pedidoSeleccionado">
@@ -597,18 +899,76 @@ export default {
         <button class="btn" @click="cerrarModalPedido">Cerrar</button>
       </div>
     </section> -->
-    
 
-    <div class="carritocompra">
-      <div class="carritoemoti">
-        <router-link to="/carritoCompra">🛒</router-link>
+    <section class="productos-populares">
+      <h2 class="titulo-populares">🐾 TALLAS 🐾</h2>
+      
+      <div class="contenedor-cartas">
+        <div class="carta">
+          <img src="./img/labrador.jpg" alt="Labrador">
+          <h3>Labrador</h3>
+          <button class="boton-principal">Tallas S, M, L</button>
+          <button class="boton-secundario">Collar</button>
+          <button class="boton-secundario">Correa</button>
+          <button class="boton-secundario">Juguete</button>
+        </div>
+
+        <div class="carta">
+          <img src="./img/pomerania.jpg" alt="Pomerania">
+          <h3>Pomerania</h3>
+          <button class="boton-principal">Tallas XS, S</button>
+          <button class="boton-secundario">Ropa</button>
+          <button class="boton-secundario">Bozal Cono</button>
+          <button class="boton-secundario">Pelota</button>
+        </div>
+
+        <div class="carta">
+          <img src="./img/bulldog.jpg" alt="Bulldog">
+          <h3>Bulldog</h3>
+          <button class="boton-principal">Tallas M, L</button>
+          <button class="boton-secundario">Cama</button>
+          <button class="boton-secundario">Pechera</button>
+          <button class="boton-secundario">arnes</button>
+        </div>
+
+        <div class="carta">
+          <img src="./img/Golden.jpg" alt="Golden Retriever">
+          <h3>Golden Retriever</h3>
+          <button class="boton-principal">Tallas L, XL</button>
+          <button class="boton-secundario">Chaleco</button>
+          <button class="boton-secundario">Bozal</button>
+          <button class="boton-secundario">Collar</button>
+        </div>
+
+        <div class="carta">
+          <img src="./img/Chihuahua.jpg" alt="Chihuahua">
+          <h3>Chihuahua</h3>
+          <button class="boton-principal">Tallas XXS, XS</button>
+          <button class="boton-secundario">Collar Lazo</button>
+          <button class="boton-secundario">Chaleco Lona</button>
+          <button class="boton-secundario">Collar ahogo</button>
+        </div>
+
+        <div class="carta">
+          <img src="./img/ShihTzu.jpg" alt="Shih Tzu">
+          <h3>Shih Tzu</h3>
+          <button class="boton-principal">Tallas S, M</button>
+          <button class="boton-secundario">Correa</button>
+          <button class="boton-secundario">Pechera</button>
+          <button class="boton-secundario">Bozal Cono</button>
+        </div>
       </div>
-    </div>
+    </section>
+
+    
 
     <div class="whasapp">
       <button @click="enviarMensajeWhatsapp" class="whatsapp-btn">
         <i class="fab fa-whatsapp"></i> 
       </button>
+      <div class="carritoemoti">
+        <router-link to="/carritoCompra">🛒</router-link>
+      </div>
     </div>
 
     <div class="categorias">
@@ -620,9 +980,11 @@ export default {
         {{ categoria }}
       </button>
     </div>
+
     <div class="box">
       <!-- Sección de productos -->
       <section class="section-products" id="products">
+        <div class="contenedor-sobre-nosotros">
           <div class="cards">
             <ul>
               <li
@@ -632,8 +994,6 @@ export default {
                 @click="irACasa(producto)"
               >
                 <div class="card-content">
-                  <button class="btn" @click.stop="onModificar(producto.id_producto)">✏️</button>
-                  <button class="btn" @click.stop="onEliminar(producto.id_producto)">🗑️</button>
                   <div class="imagen">
                     <img :src="getImagenUrl(producto.imagen)" alt="Imagen del producto" />
                   </div>
@@ -653,52 +1013,47 @@ export default {
                     />
                     <button type="button" @click.stop="incrementarCantidad(producto)">+</button>
                   </div>
-                  <button class="btn" @click.stop="abrirModal(producto)">Compra</button>
+                  <button v-if="memoria?.id_usuario"  class="btn" @click.stop="abrirModal(producto)">Compra</button>
+                  <button v-else  class="btn" @click.stop="ValidacionSecion">Compra</button>
                   <button class="btn" @click.stop="carritoCompra(producto)">🛒</button>
-
-                
                 </div>
               </li>
             </ul>
-         
+          </div>
         </div>
       </section>
 
       <!-- Controles de paginación -->
       <div class="paginacion">
-  <button
-    @click="cambiarPaginaProductos(paginaActualProductos - 1)"
-    :disabled="paginaActualProductos === 1"
-    class="boton-paginacion"
-  >
-    ⬅ Anterior
-  </button>
+        <button
+          @click="cambiarPaginaProductos(paginaActualProductos - 1)"
+          :disabled="paginaActualProductos === 1"
+          class="boton-paginacion"
+        >⬅ Anterior
+        </button>
+        <button
+          v-for="pagina in totalPaginasProductos"
+          :key="pagina"
+          @click="cambiarPaginaProductos(pagina)"
+          :class="['boton-paginacion', { activo: pagina === paginaActualProductos }]"
+        >
+          {{ pagina }}
+        </button>
 
-  <button
-    v-for="pagina in totalPaginasProductos"
-    :key="pagina"
-    @click="cambiarPaginaProductos(pagina)"
-    :class="['boton-paginacion', { activo: pagina === paginaActualProductos }]"
-  >
-    {{ pagina }}
-  </button>
-
-  <button
-    @click="cambiarPaginaProductos(paginaActualProductos + 1)"
-    :disabled="paginaActualProductos === totalPaginasProductos"
-    class="boton-paginacion"
-  >
-    Siguiente ➡
-  </button>
-</div>
-
+        <button
+          @click="cambiarPaginaProductos(paginaActualProductos + 1)"
+          :disabled="paginaActualProductos === totalPaginasProductos"
+          class="boton-paginacion"
+        >
+          Siguiente ➡
+        </button>
+      </div>
     </div>
-      
 
     <section class="sobre-nosotros" id="sobre-nosotros">
     <div class="contenedor-nosotros">
       <div class="imagen-nosotros">
-        <img src="./img/Nosotros2.jpeg" alt="Viajeros" />
+        <img src="./img/Nosotros2.jpg" alt="Viajeros" />
         <div class="superposicion-video">
           <img src="./img/video.jpg" alt="Vista previa del video" class="miniatura-video" />
           <button class="boton-reproducir">▶</button>
@@ -722,7 +1077,7 @@ export default {
           claro qué puede esperar el destinatario de ti y qué beneficios puedes
           aportarle.
         </p>
-        <button class="boton primario">CONTÁCTENOS</button>
+        
       </div>
     </div>
   </section>
@@ -733,214 +1088,719 @@ export default {
         <img src="./img/mascotas.jpg" alt="Accesorios para mascotas" />
       </div>
       <div class="formulario-reserva">
-        <h2>Compra accesorios para tu mascota</h2>
-        <form>
+        <h2>Tienes Dudas?</h2>
+        <form @submit.prevent="apiEmail">
           <div class="campo">
-            <label for="producto">Producto</label>
-            <input type="text" id="producto" placeholder="Nombre del producto" />
+            <label for="email">Correo electrónico Mascotas</label>
+            <div class="email-container">
+              <input type="email" v-model="comprobarEmail.destinatario" id="email" placeholder="Correo electrónico" required readonly />
+              <button @click="copiarCorreo" class="btn-copiar">📋 Copiar</button>
+            </div>
           </div>
+          
           <div class="campo">
-            <label for="cantidad">Cantidad</label>
-            <input type="number" id="cantidad" placeholder="Cantidad" />
-          </div>
-          <div class="campo">
-            <label for="email">Correo electrónico*</label>
-            <input type="email" id="email" placeholder="Correo electrónico" required />
-          </div>
-          <div class="campo">
-            <label for="telefono">Número de teléfono</label>
-            <input type="tel" id="telefono" placeholder="Número de teléfono" />
+            <label for="email">Correo electrónico</label>
+            <input type="email" v-model="comprobarEmail.asunto" id="email" placeholder="Correo electrónico" required />
           </div>
           <div class="campo">
             <label for="mensaje">Mensaje</label>
-            <textarea id="mensaje" placeholder="Escribe tu mensaje aquí..."></textarea>
+            <textarea id="mensaje" v-model="comprobarEmail.mensaje" placeholder="Escribe tu mensaje aquí..."></textarea>
           </div>
           <button type="submit" class="boton">ENVIAR PEDIDO</button>
         </form>
       </div>
       <aside class="contacto" id="contacto">
         <h3>Contacto</h3>
-        <p><strong>Teléfono:</strong> +1 234 567 890</p>
-        <p><strong>Email:</strong> contacto@mascotas.com</p>
-        <p><strong>Ubicación:</strong> 123 Calle Pet Lovers, Ciudad, País</p>
+        <p><strong>Teléfono:</strong> +57 3508381030</p>
+        <p><strong>Email:</strong> TiendamascotasR@gmail.com</p>
+        <p><strong>Ubicación:</strong>Mosquera Cundinamarca  CL. 17 #12 16</p>
         <h3>Horario de atención</h3>
         <p>Lunes - Viernes: 9am a 6pm</p>
         <p>Sábado: 10am a 2pm</p>
       </aside>
     </div>
-  </section>
+  </section>    
+</div>
 
- 
+  <div v-if="modalAbierto" class="modal-overlay">
+    <div class="modal-contenido">
+      <button class="cerrar" @click="cerrarModal">✖</button>
+      
+      <h2>Pago con Tarjeta</h2>
+       <p><strong>Producto:</strong> {{ productoSeleccionado?.nombre }}</p>
+      <p><strong>Precio:</strong> ${{ productoSeleccionado?.precio }}</p>
 
-                    <div v-if="modalAbierto" class="modal-overlay">
-                    <div class="modal-contenido">
-                      <button class="cerrar" @click="cerrarModal">✖</button>
-                      
-                      <h2>Pago con Tarjeta</h2>
-                      <p><strong>Producto:</strong> {{ productoSeleccionado?.nombre }}</p>
-                      <p><strong>Precio:</strong> ${{ productoSeleccionado?.precio }}</p>
+      <div class="tarjeta-simulada">
+        
+        <div class="numero">
+          <label>Número</label>
+          <input type="text"  v-model="datosTarjeta.tarjetaCredito" placeholder="Número de Tarjeta" maxlength="16" required />
+        </div>
+        <div class="titular">
+          <label>Titular</label>
+          <input type="text" v-model="datosTarjeta.nombre" placeholder="Nombre del Titular" required />
+        </div>
+        <div class="fila">
+          <div class="vencimiento">
+            <label>Vencimiento</label>
+            <input type="text" v-model="datosTarjeta.vencimiento" placeholder="MM/YY" maxlength="5" required />
+          </div>
+          <div class="cvv">
+            <label>CVV</label>
+            <input type="text" v-model="datosTarjeta.cvv" placeholder="CVV" maxlength="3" required />
+          </div>
+        </div>
+      </div>
+      <!-- Si hay dirección en memoria -->
+      <button 
+        v-if="memoria.direccion" 
+        class="btn btn-comprar" 
+        @click="comprar(productoSeleccionado)">
+        💳 Comprar
+      </button>
 
-                      <div class="tarjeta-simulada">
-                        <div class="banco">
-                          <label>Banco</label>
-                          <input type="text" placeholder="Banco" required />
-                        </div>
-                        <div class="numero">
-                          <label>Número</label>
-                          <input type="text" placeholder="Número de Tarjeta" maxlength="16" required />
-                        </div>
-                        <div class="titular">
-                          <label>Titular</label>
-                          <input type="text" placeholder="Nombre del Titular" required />
-                        </div>
-                        <div class="fila">
-                          <div class="vencimiento">
-                            <label>Vencimiento</label>
-                            <input type="text" placeholder="MM/YY" maxlength="5" required />
-                          </div>
-                          <div class="cvv">
-                            <label>CVV</label>
-                            <input type="text" placeholder="CVV" maxlength="3" required />
-                          </div>
-                        </div>
-                      </div>
-                      <button class="btn btn-comprar" @click="comprar(productoSeleccionado)">💳 Comprar</button>
-                    </div>
-                  </div>
-              
-         
-  
+      <!-- Si no hay dirección en memoria -->
+      <button 
+        v-else 
+        class="btn btn-comprar" 
+        @click="cerrarModal(); abrirModalUsuario()">
+        💳 Comprar
+      </button>
+    </div>
+  </div>
+<footer class="footer-mascotas">
+  <div class="contenedor-footer">
+    <div class="col-footer logo-info">
+      <h2><span class="logo-icon">🐾</span>Mascotas</h2>
+      <p>
+        Somos amantes de las mascotas, ofreciendo productos de calidad para su bienestar.
+        Con más de 10 años acompañando a miles de hogares con accesorios, ropa y juguetes para tus peludos.
+      </p>
+      
+    </div>
 
-  
+    <div class="col-footer">
+      <h4>TIENDA</h4>
+      <ul>
+        <li><a href="#">Todas las categorías</a></li>
+        <li><a href="#">Accesorios</a></li>
+        <li><a href="#">Ropa</a></li>
+        <li><a href="#">Juguetes</a></li>
+        <li><a href="#">Ofertas</a></li>
+      </ul>
+    </div>
+
+    <div class="col-footer">
+      <h4>INFORMACIÓN</h4>
+      <ul>
+        <li><a href="#">Políticas de privacidad</a></li>
+        <li><a href="#">Términos y condiciones</a></li>
+        <li><a href="#">Preguntas frecuentes</a></li>
+        <li><a href="#">Reclamos y sugerencias</a></li>
+      </ul>
+    </div>
+
+    <div class="col-footer">
+      <h4>CONTACTO</h4>
+      <ul>
+        <li>📧 TiendamascotasR@gmail.com</li>
+        <li>📞 +57 3508381030</li>
+        <li>📍 mosquera Cundinamarca</li>
+      </ul>
+      <div class="redes-sociales">
+        <a href="#"><img src="./img/youtube.jpg" alt="YouTube" /></a>
+        <a href="#"><img src="https://cdn-icons-png.flaticon.com/512/1384/1384053.png" alt="Facebook" /></a>
+        <a href="#"><img src="https://cdn-icons-png.flaticon.com/512/1384/1384063.png" alt="Instagram" /></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
 </template>
-<style scoped >
-
+<style scoped>
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
+.box{
+  background-color: #ffffff;
+}
 
-header {
+.email-container {
+  display: flex;
+  align-items: center;
+}
+
+.btn-copiar {
+  margin-left: 10px;
+  padding: 5px 10px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.btn-copiar:hover {
+  background-color: #45a049;
+}
+
+.li_dos {
+  font-size: 1.5em;
+}
+
+.pet-hero {
   position: relative;
-  width: 100%;
   height: 100vh;
+  background-color: #e5954a; /* Color de fondo café */
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column; /* Para que el contenido esté en columna */
+}
+
+.hero-curve {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  background: white;
+  border-bottom-right-radius: 80% 100%;
+  border-top-right-radius: 80% 100%;
+  z-index: 1;
+}
+
+/* Texto alineado al borde izquierdo y centrado verticalmente */
+.hero-text {
+  position: absolute;
+  left: 5%;
+  top: 50%; /* El texto se sube un poco más */
+  transform: translateY(-50%);
+  z-index: 2;
+  max-width: 40%;
+  color: #000;
+}
+
+/* Estilos del texto */
+.subtitle {
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.title {
+  font-size: 3rem;
+  font-weight: bold;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+
+.description {
+  font-size: 1rem;
+  color: #555;
+  margin-bottom: 2rem;
+}
+
+.shop-btn {
+  padding: 0.75rem 1.5rem;
+  background-color: #000;
+  color: #fff;
+  border: none;
+  border-radius: 25px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.shop-btn:hover {
+  background-color: #333;
+}
+
+/* Huellas */
+.paw {
+  position: absolute;
+  width: 500px;
+  z-index: 2;
+}
+
+.paw-top-left {
+  top: 30px;
+  left: 55%;
+}
+
+/* Ajuste para la imagen centrada */
+.paw-top-left img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Responsive */
+@media screen and (max-width: 768px) {
+  .pet-hero {
+    flex-direction: column-reverse; /* Cambia el orden de los elementos, poniendo la imagen debajo del texto */
+  }
+
+  .hero-curve {
+    width: 100%;
+    height: 50%;
+    border-bottom-right-radius: 100% 30%;
+    border-bottom-left-radius: 60% 30%;
+  }
+
+  .hero-text {
+    max-width: 90%;
+    left: 5%;
+    top: auto;
+    transform: none;
+    padding-top: 30%;
+    text-align: center; /* Centra el texto */
+    position: relative;
+    z-index: 3; /* Asegura que el texto esté por encima */
+  }
+
+  .title {
+    font-size: 2.2rem;
+  }
+
+  .description {
+    font-size: 1rem;
+  }
+
+  .shop-btn {
+    padding: 0.6rem 1.2rem;
+  }
+
+  /* Imagen */
+  .paw {
+    width: 250px; /* Reduje el tamaño de la imagen */
+    
+    left: 30%; /* Mueve la imagen un poco más a la izquierda */
+    transform: translateX(-50%); /* Centra la imagen */
+  }
+
+  .paw-top-left {
+    position: relative;
+    top: 0; /* La imagen estará abajo del texto */
+  }
+}
+
+/* NAVBAR BASE */
+.navbar {
+  background-color: #333;
+  padding: 10px 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+.navbar-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+/* IZQUIERDA */
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+}
+
+/* DERECHA */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-right:80px;
+}
+
+.icono-link {
+  color: white;
+  font-size: 1.5em;
+  transition: color 0.3s;
+}
+
+.icono-link:hover {
+  color: #00ffcc;
+}
+
+/* Aumentar solo los íconos de notificaciones y WhatsApp */
+.icono-link i {
+  font-size: 1.7em; /* Puedes subir a 2.5em si los quieres más grandes */
+  transition: color 0.3s;
+}
+
+.icono-link i:hover {
+  color: #00ffcc;
+}
+
+
+/* Buscador */
+.form-buscador {
+  display: flex;
+  background-color: #f1f1f1;
+  border-radius: 25px;
+  overflow: hidden;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
+  max-width: 800px;
+}
+.contenedor-buscador{
+ width: 500px;
+}
+
+.input-buscador {
+  flex: 1;
+  padding: 10px 15px;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  background-color: transparent;
+}
+
+.boton-buscador {
+  padding: 10px 20px;
+  border: none;
+  background-color: #e0c10f;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.boton-buscador:hover {
+  background-color:  #c2a70d;
+}
+
+h2 {
+  font-size: 2rem; 
+  color: #dd0808; 
+  text-align: center;
+  margin-bottom: 20px; 
+}
+
+/* Categoría Nav */
+.contenedor-categorias {
+  position: relative;
+  display: inline-block;
+}
+
+.btn-categorias {
+  background-color: #e0c10f;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.3s ease;
+}
+
+.btn-categorias:hover {
+  background-color: #e0c10f;
+}
+
+.btn-categorias i {
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+.dropdown-categorias {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: #fff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 5px;
+  margin-top: 10px;
+  padding: 10px 0;
+  width: 200px;
+  z-index: 999;
+}
+
+.item-categoria {
+  background-color: #fff;
+  color: #333;
+  padding: 10px 20px;
+  border: none;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 14px;
+}
+
+.item-categoria:hover {
+  background-color: #f0f0f0;
+}
+
+.item-categoria.activo {
+  background-color: #3498db;
+  color: white;
+}
+
+.item-categoria:focus {
+  outline: none;
+}
+
+
+#hamburguesa{
+    color: whitesmoke;  
+    position: absolute;
+    right: 20px;
+    top: 15%;
+  }
+#hamburguesa, #cerrarHamburguesa {
+    font-size: 3rem;
+    font-weight: bolder;
+    cursor: pointer;
+    user-select: none;
+    
+}
+  
+.menuHamburguesa {
+    background-color:  #333;
+    width: 20%;
+    position: fixed;
+    top: 0;
+    right: -100%;
+    bottom: 0;
+    color: white;
+    text-align: right;
+    padding: 20px;
+    transition: left 0.3s ease-in-out;
+}
+  
+.menuHamburguesa ul {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 20px;
-}
-
-.card-link {
-  display: block;
-  text-decoration: none;
-  color: inherit;
-}
-
-.hero {
-  display: flex;
-  align-items: flex-start; /* Alinea los elementos desde la parte superior */
-  justify-content: flex-start;
+  align-items: center;
+  padding: 0;
   
-  position: relative;
- 
 }
 
-.logo-large {
+.menuHamburguesa .lihamburguesa {
+  list-style: none;
+  width: 100%;
+  text-align: center;
+  padding: 10px 0;
+  color: white; /* Color blanco por defecto */
+  font-size: 1.2em; /* Tamaño de fuente */
+  transition: color 0.3s ease; /* Transición suave para el color del texto */
+}
+
+.menuHamburguesa .lihamburguesa:hover {
+  color: #FFFF00;
+}
+
+.menuHamburguesa .lihamburguesa a {
+  color: inherit; 
+  text-decoration: none; 
+  display: block; 
+  padding: 10px; 
+  transition: color 0.3s ease; 
+}
+
+.menuHamburguesa .lihamburguesa a:hover {
+  color: #FFFF00; 
+}
+
+.openHamburguesa {
+    right: 0;
+}
+
+.carrusel { 
+  position: relative;
+  width: 100%;
+  max-width: 100%; /* Usa todo el ancho posible */
+  margin: 0 auto;
+  padding: 0 74px; /* Márgenes laterales suaves */
+  height: 500px; 
+  overflow: hidden;
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
+.carrusel-imagen {
   position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: -1;
+  z-index: 1;
+  top: 50px;
+  left: 0;
 }
 
-.text-container {
-  position: absolute;
-  bottom: 30%; 
-  right: 500px;
+.carrusel-texto {
+  position: relative;
+  z-index: 2;
+  color: white;
+  background: rgba(0, 0, 0, 0.404);
+  padding: 1rem 2rem;
+  border-radius: 10px;
+  text-align: center;
+  max-width: 80%;
+}
+
+.carrusel-texto h2 {
+  font-size: 2.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.carrusel-texto p {
+  font-size: 1.3rem;
   margin: 0;
-  display: flex;
-  flex-direction: row;
-  gap: 4px;
 }
 
-.badge {
-  background: orange;
-  padding: 10px 8px;
-  border-radius: 5px;
-  font-size: 0.9rem;
+/* Responsive */
+@media screen and (max-width: 768px) {
+  .carrusel-texto h2 {
+    font-size: 1.6rem;
+  }
+
+  .carrusel-texto p {
+    font-size: 1.1rem;
+  }
 }
 
-h1 {
-  font-size: 2.2rem; /* Tamaño de letra reducido */
-  margin: 15px 0;
-  color: black;
+@media screen and (max-width: 480px) {
+  .carrusel-texto {
+    padding: 0.8rem 1rem;
+    max-width: 90%;
+  }
+
+  .carrusel-texto h2 {
+    font-size: 1.3rem;
+  }
+
+  .carrusel-texto p {
+    font-size: 1rem;
+  }
 }
 
-.hero p {
-  font-size: 1.2rem; /* Tamaño más pequeño */
-  color: #ffffff;
+.productos-populares {
+  padding: 40px 20px;
+  background-color: #eeeaea;
 }
 
-
-
-.primary {
-  background: orange;
-  color: white;
-  margin-right: 10px;
-}
-
-.secondary {
-  background: white;
-  color: black;
-}
-
-.traveler img {
-  height: auto;
-}
-.traveler {
-  align-self: flex-end;
-  margin-top: 0%; 
-  margin-left: 90%;
-}
-.menuInfoCliente {
-  cursor: pointer; 
-  transition: background-color 0.3s ease, color 0.3s ease; 
-}
-
-.menuInfoCliente:hover {
-  color: yellow; 
-  
-}
-/* Botón de Compra Múltiple */
-.btn-compra-multiple {
-  background-color: #28a745; 
-  color: white;
-  padding: 12px 20px;
-  font-size: 16px;
+.titulo-populares {
+  text-align: center;
+  font-size: 32px;
   font-weight: bold;
+  margin-bottom: 30px;
+  color: #444;
+  text-shadow: 1px 1px 2px #ccc;
+}
+
+.contenedor-cartas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 columnas fijas */
+  gap: 25px;
+  padding: 40px;
+  max-width: 1200px;
+  margin: auto;
+}
+
+.carta {
+  background-color: #ffffff; /* Gris claro */
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  transition: transform 0.2s ease;
+}
+
+.carta:hover {
+  transform: scale(1.03);
+}
+
+.carta img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.carta h3 {
+  margin: 15px 0 10px;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.boton-principal {
+  background-color: #ffa500;
+  color: white;
+  padding: 10px;
+  width: 100%;
+  margin: 10px 0;
   border: none;
   border-radius: 8px;
+  font-weight: bold;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-.btn-compra-multiple:hover {
-  background-color: #218838; 
-  transform: scale(1.05); /* Efecto de agrandamiento */
+.boton-secundario {
+  background-color: #ddd;
+  padding: 8px;
+  width: 100%;
+  margin: 5px 0;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
-.btn-compra-multiple:active {
-  background-color: #1e7e34; 
-  transform: scale(0.95); /* Efecto de reducción al hacer clic */
+.boton-secundario:hover {
+  background-color: #ccc;
 }
 
-.btn-compra-multiple:focus {
-  outline: none;
-  box-shadow: 0px 0px 8px rgba(40, 167, 69, 0.8); /* Resaltado al enfocar */
+
+@media (max-width: 900px) {
+  .contenedor-cartas {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .contenedor-cartas {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Modal de pago*/
+.modal-overlay  {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-contenido {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 500px;
+  position: relative;
 }
 
 /* Modal de usuario */
@@ -992,6 +1852,322 @@ h1 {
   display: flex;
   justify-content: space-between;
   gap: 10px;
+}
+/*paginacion */
+.paginacion {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2rem;
+}
+
+.boton-paginacion {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  min-width: 40px;
+}
+
+.boton-paginacion:hover:not(:disabled) {
+  background-color: #e0f7fa;
+}
+
+.boton-paginacion:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.boton-paginacion.activo {
+  background-color: #4caf50;
+  color: white;
+  border-color: #4caf50;
+}
+
+/* Cards */
+.card {
+  background-color: #fff;
+  border: 1px solid #ffffff;
+  border-radius: 10px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  width: 280px;
+  text-align: left;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.card-content strong {
+  color: #ff6600;
+}
+
+/* Sobre Nosotros */
+.sobre-nosotros {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 50px;
+  background: #ffffff;
+}
+
+.contenedor-nosotros {
+  display: flex;
+  max-width: 1200px;
+  gap: 50px;
+  align-items: center;
+}
+
+.imagen-nosotros {
+  position: relative;
+  flex: 1;
+}
+
+.imagen-nosotros img {
+  width: 100%;
+  border-radius: 10px;
+}
+
+.superposicion-video {
+  position: absolute;
+  bottom: 1px;
+  left: 74%;
+  width: 200px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.miniatura-video {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+}
+
+.boton-reproducir {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  border-radius: 50%;
+  padding: 10px;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.informacion-contacto {
+  position: absolute;
+  bottom: 1%;
+  left: 49%;
+  background: orange;
+  padding: 5px;
+  border-radius: 5px;
+  height: 15%;
+  color: rgb(15, 14, 14);
+  font-weight: bold;
+}
+
+.texto-nosotros {
+  flex: 1;
+}
+
+.texto-nosotros h2 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.texto-nosotros p {
+  margin-bottom: 10px;
+  color: #000000;
+}
+
+.boton {
+  padding: 10px 20px;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+
+/*Reserva*/
+/*Reserva*/
+.reserva {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 50px;
+  background: #ffffff;
+}
+
+.contenedor-reserva {
+  display: flex;
+  max-width: 1100px; 
+  align-items: flex-start; 
+}
+
+.imagen-reserva img {
+  width: 100%;
+  max-width:470px; 
+  height: 110%;
+  max-height: 110%;
+  border-radius: 10px;
+}
+
+.formulario-reserva {
+  flex: 1;
+  background: white;
+  padding: 17px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  height: 695px; /* Mantener la altura original */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* Asegura que el contenido se alinee arriba */
+}
+
+.campo {
+  margin-bottom: 20px;
+  margin-top: -10px; /* Subir el texto de cada campo */
+}
+
+label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 5px;
+  margin-top: -10px; /* Subir los labels */
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.boton {
+  background: orange;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.email-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.email-container input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+/* Botón de Copiar */
+.btn-copiar {
+  background-color: #4caf50;
+  color: white;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s ease-in-out;
+}
+
+.btn-copiar:hover {
+  background-color: #45a049;
+  transform: scale(1.05);
+}
+
+.btn-copiar:active {
+  background-color: #388e3c;
+}
+
+.btn-copiar:focus {
+  outline: none;
+}
+
+.contacto {
+  margin-left: 20px;
+  flex: 0.6;
+  background: #fff;
+  padding: 15prgb(0, 0, 0);
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  height: auto;
+  font-size: 0.85rem; 
+  position: relative;
+  top: 0px; 
+}
+.contacto p {
+  color:black;
+}
+
+.cerrar {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+}
+.card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.menuInfoCliente {
+  font-size: 1.2em;
+  cursor: pointer; 
+  transition: background-color 0.3s ease, color 0.3s ease; 
+}
+
+.menuInfoCliente:hover {
+  color: yellow; 
+  
+}
+/* Botón de Compra Múltiple */
+.btn-compra-multiple {
+  background-color: #28a745; 
+  color: white;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-compra-multiple:hover {
+  background-color: #218838; 
+  transform: scale(1.05); /* Efecto de agrandamiento */
+}
+
+.btn-compra-multiple:active {
+  background-color: #1e7e34; 
+  transform: scale(0.95); /* Efecto de reducción al hacer clic */
+}
+
+.btn-compra-multiple:focus {
+  outline: none;
+  box-shadow: 0px 0px 8px rgba(40, 167, 69, 0.8); /* Resaltado al enfocar */
 }
 
 .btn-save {
@@ -1091,77 +2267,12 @@ input[type=number]::-webkit-outer-spin-button {
 #libienvenido{
   font-size: 40px;
 }
-#hamburguesa{
-    color: whitesmoke;
-    position: absolute;
-    right: 20px;
-  }
-#hamburguesa, #cerrarHamburguesa {
-    font-size: 3rem;
-    font-weight: bolder;
-    cursor: pointer;
-    user-select: none;
-    
-}
-  
-.menuHamburguesa {
-    background-color:  #333;
-    width: 20%;
-    position: fixed;
-    top: 0;
-    right: -100%;
-    bottom: 0;
-    color: white;
-    text-align: right;
-    padding: 20px;
-    transition: left 0.3s ease-in-out;
-}
-  
-.menuHamburguesa ul {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0;
-  
-}
-
-.menuHamburguesa .lihamburguesa {
-  list-style: none;
-  width: 100%;
-  text-align: center;
-  padding: 10px 0;
-  color: white; /* Color blanco por defecto */
-  font-size: 1.2em; /* Tamaño de fuente */
-  transition: color 0.3s ease; /* Transición suave para el color del texto */
-}
 
 
-.menuHamburguesa .lihamburguesa:hover {
-  color: #FFFF00;
-}
-
-.menuHamburguesa .lihamburguesa a {
-  color: inherit; 
-  text-decoration: none; 
-  display: block; 
-  padding: 10px; 
-  transition: color 0.3s ease; 
-}
-
-.menuHamburguesa .lihamburguesa a:hover {
-  color: #FFFF00; 
-}
-  
-.openHamburguesa {
-    right: 0;
-}
-
-.carritocompra {
-  position: fixed;
-  top: 800px;
-  bottom: 20px; 
-  right: 30px;
-  z-index: 1000;
+/* Carrito */
+.carritoemoti {
+  bottom: 90px; /* Espacio encima del botón de WhatsApp */
+  right: 20px;
 }
 
 .carritoemoti a {
@@ -1213,103 +2324,51 @@ input[type=number]::-webkit-outer-spin-button {
   transform: scale(1.1); /* Efecto de agrandamiento */
 }
 
-/*paginacion */
-.paginacion {
+/* Estilos generales para los botones de categorías */
+.categorias {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  margin-top: 2rem;
+  justify-content: center; /* Centrar los botones */
+  gap: 15px; /* Espacio entre botones */
+  margin: 20px 0;
+  flex-wrap: wrap; /* Permite que los botones se ajusten en varias líneas si no hay suficiente espacio */
 }
 
-.boton-paginacion {
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  background-color: #fff;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 500;
-  min-width: 40px;
-}
-
-.boton-paginacion:hover:not(:disabled) {
-  background-color: #e0f7fa;
-}
-
-.boton-paginacion:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.boton-paginacion.activo {
-  background-color: #4caf50;
-  color: white;
-  border-color: #4caf50;
-}
-
-.centro_control {
-  display: flex;
-  justify-content: center; /* Centra el contenido horizontalmente */
-  align-items: flex-start;
-  width: 100%; /* Ocupa el 100% del contenedor padre */
-  margin: 20px auto;
-  padding: 20px;
-  border: 2px solid #ccc;
-  border-radius: 10px;
-  background: #f9f9f9;
-}
-
-.left-section, .right-section  {
-  width: 100%; /* Ocupa el 100% del contenedor padre */
-  padding: 10px;
-  text-align: center;
-}
-.pie_estadistico {
-  height: 500px;
-  width: 500px;
-  margin: 0 auto; /* Centra el pie_estadistico */
-}
-
-/* Modal de pago*/
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0,0,0,0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-contenido {
-  background: white;
-  padding: 2rem;
-  border-radius: 10px;
-  width: 90%;
-  max-width: 500px;
-  position: relative;
-}
-
-.cerrar {
-  position: absolute;
-  top: 10px;
-  right: 15px;
+.categorias button {
+  padding: 15px 25px; /* Tamaño más grande */
+  font-size: 18px; /* Texto más grande */
   border: none;
-  background: transparent;
-  font-size: 20px;
+  background-color: orange; /* Botón color naranja */
+  color: white; /* Texto blanco */
   cursor: pointer;
+  border-radius: 8px; /* Bordes redondeados */
+  transition: background 0.3s, transform 0.2s;
+  white-space: nowrap; /* Impide que el texto se divida en varias líneas */
 }
 
-.whasapp {
+/* Estado del botón activo */
+.categorias button.activo {
+  background-color: #d68600; /* Un naranja más oscuro para el botón activo */
+}
+
+/* Efecto hover */
+.categorias button:hover {
+  background-color: red; /* Cambio a rojo al pasar el mouse */
+  transform: scale(1.1); /* Efecto de agrandamiento */
+}
+
+
+/* Estilos generales para ambos botones */
+.whasapp,
+.carritoemoti {
   position: fixed;
-  bottom: 20px; 
-  right: 20px;  
   z-index: 1000;
+}
+
+
+/* WhatsApp */
+.whasapp {
+  bottom: 20px;
+  right: 20px;
 }
 
 .whatsapp-btn {
@@ -1332,26 +2391,16 @@ input[type=number]::-webkit-outer-spin-button {
   background-color: #1ebe5d;
   transform: scale(1.1);
 }
-.pie_estadistico{
-  height: 500px;
-  width: 500px;
-  
-}
+
 .infocliente{
   color: white;
   font-size: 25px;
 }
 
-body {
-  font-family: 'Poppins', sans-serif;
-  background-color: #f5f5f5;
-
-  line-height: 1.6;
-}
 
 h1, h2, h3 {
   font-weight: 700;
-  color: #000000;
+  color: #333;
 }
 
 a {
@@ -1364,257 +2413,561 @@ ul {
   padding: 0;
 }
 
-/* Navbar */
-.navbar {
-  padding: 15px 0;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  height: 70px;
+p {
+  font-size: 1.2em;
+  text-align: center;
+  max-width: 800px; 
+  margin: 0 auto 40px; 
+  line-height: 1.6;
+  color: #333;
+}
+/* Sections */
+.section {
+  padding: 60px 20px;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 20px;
+  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
 }
 
-.navbar ul {
-  display: flex;
-  
-  justify-content: center;
-  gap: 10px;
-}
-
-.navbar ul li a {
-  color: white;
-  font-size: 1.1em;
-  font-weight: 500;
-  padding: 10px;
-  transition: color 0.3s;
-}
-
-.navbar ul li a:hover {
-  color: #fffb00;
-}
-
-/* Sobre Nosotros */
-.sobre-nosotros {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 50px;
-  background: #f9f9f9;
-}
-
-.contenedor-nosotros {
-  display: flex;
-  max-width: 1200px;
-  gap: 50px;
-  align-items: center;
-}
-
-.imagen-nosotros {
+.section h2 {
+  font-size: 2.5em;
+  color: #333;
+  margin-bottom: 20px;
+  font-weight: 600;
   position: relative;
-  flex: 1;
 }
 
-.imagen-nosotros img {
-  width: 100%;
-  border-radius: 10px;
-}
-
-.superposicion-video {
-  position: absolute;
-  bottom: 1px;
-  left: 74%;
-  width: 200px;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.miniatura-video {
-  width: 100%;
+.section h2::after {
+  content: '';
+  width: 80px;
+  height: 3px;
+  background-color: #dd0808;
   display: block;
-  border-radius: 10px;
+  margin: 8px auto 0;
+  border-radius: 4px;
 }
 
-.boton-reproducir {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(255, 255, 255, 0.8);
-  border: none;
-  border-radius: 50%;
-  padding: 10px;
-  font-size: 1.2rem;
-  cursor: pointer;
+.section p {
+  font-size: 1.1em;
+  color: #555;
+  max-width: 800px;
+  margin: 0 auto 20px;
+  line-height: 1.8;
 }
-
-.informacion-contacto {
-  position: absolute;
-  bottom: 1%;
-  left: 49%;
-  background: orange;
-  padding: 5px;
-  border-radius: 5px;
-  height: 15%;
+/* Buttons */
+.btn {
+  background-color: #ddab08;
   color: white;
-  font-weight: bold;
-}
-
-.texto-nosotros {
-  flex: 1;
-}
-
-.texto-nosotros h2 {
-  font-size: 2rem;
-  margin-bottom: 10px;
-}
-
-.texto-nosotros p {
-  margin-bottom: 10px;
-  color: #000000;
-}
-
-.boton {
   padding: 10px 20px;
   border: none;
-  cursor: pointer;
-  font-size: 1rem;
-}
-
-.primario {
-  background: orange;
-  color: white;
   border-radius: 5px;
+  cursor: pointer;
+  font-size: 1em;
+  transition: background-color 0.3s;
 }
 
-/* Preguntas Frecuentes */
+.btn:hover {
+  background-color: #dd0808;
+}
 
-.preguntas-frecuentes {
-  background: url('./img/fondo.jpg') no-repeat center center/cover;
-  padding: 80px 20px;
+.credit {
   text-align: center;
-  color: white;
+  margin-top: 20px;
+  font-size: 1em;
+  color: #ccc;
 }
-
-.contenedor {
-  max-width: 800px;
-  margin: auto;
-}
-
-h2 {
-  font-size: 2rem;
-  margin-bottom: 20px;
-}
-
-.acordeon {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.pregunta {
-  background: rgba(25, 31, 110, 0.5);
-  padding: 15px;
-  border-radius: 5px;
-  text-align: left;
-}
-
-.pregunta-titulo {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 1rem;
+.card .imagen img {
   width: 100%;
-  text-align: left;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
+  height: auto; /* Mantiene la proporción */
+  max-height: 200px; /* Limita la altura máxima */
+  object-fit: contain; /* Ajusta la imagen para que se vea completa sin cortar */
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.btn {
+  position: relative;  /* Asegura que el botón esté en su propio contexto de apilamiento */
+  z-index: 10;  /* Ajusta el z-index según lo necesario */
 }
 
-.icono {
-  font-size: 1.2rem;
-}
-
-.respuesta {
-  background: rgba(255, 255, 255, 0.1);
-  padding: 10px;
-  margin-top: 5px;
-  border-radius: 5px;
-}
-
-/*Reserva*/
-.reserva {
+/* Modal de pago */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7); /* Más oscuro para mayor contraste */
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 50px;
-  background: #f9f9f9;
+  z-index: 1000;
 }
 
-.contenedor-reserva {
-  display: flex;
-  max-width: 1100px; 
-  align-items: flex-start; 
+.modal-contenido {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 15px; /* Bordes más redondeados */
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3); /* Sombra más pronunciada */
+  animation: fadeIn 0.3s ease-in-out; /* Animación de entrada */
 }
 
-.imagen-reserva img {
-  width: 100%;
-  max-width:470px; 
-  height: 110%;
-  max-height: 110%;
-  border-radius: 10px;
+.cerrar {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  cursor: pointer;
+  color: #333;
+  transition: color 0.3s ease;
 }
 
-.formulario-reserva {
-  flex: 1;
-  background: white;
-  padding: 30px;
-  border-radius: 10px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  height: 750px; /* Más largo */
+.cerrar:hover {
+  color: #dd0808; /* Color rojo al pasar el mouse */
+}
+
+.tarjeta-simulada {
+  margin-top: 20px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* Distribuye los elementos */
+  gap: 15px; /* Espaciado uniforme entre los campos */
 }
 
-.campo {
-  margin-bottom: 20px;
-}
-
-label {
-  display: block;
+.tarjeta-simulada label :scope {
   font-weight: bold;
-  margin-bottom: 5px;
+  font-size: 14px;
+  color: #555;
 }
 
-input,
-textarea {
+.tarjeta-simulada input {
   width: 100%;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid #ccc;
-  border-radius: 5px;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.3s ease;
 }
 
-.boton {
-  background: orange;
+.tarjeta-simulada input:focus {
+  border-color: #007bff; /* Azul al enfocar */
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); /* Resaltado al enfocar */
+}
+
+.tarjeta-simulada .fila {
+  display: flex;
+  gap: 10px;
+}
+
+.tarjeta-simulada .fila > div {
+  flex: 1; /* Divide el espacio equitativamente */
+}
+
+.btn-comprar {
+  margin-top: 20px;
+  background-color: #28a745;
   color: white;
   padding: 12px 20px;
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
   cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
-.contacto {
-  margin-left: 20px;
-  flex: 0.6;
-  background: #fff;
-  padding: 15px;
-  border-radius: 10px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  height: auto;
-  font-size: 0.85rem; 
-  position: relative;
-  top: 0px; 
+.btn-comprar:hover {
+  background-color: #218838;
+  transform: scale(1.05); /* Efecto de agrandamiento */
 }
+
+.btn-comprar:active {
+  background-color: #1e7e34;
+  transform: scale(0.95); /* Efecto de reducción al hacer clic */
+}
+.footer-mascotas {
+  background-color: #333;
+  color: #fff;
+  padding: 40px 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 17px;
+}
+
+.contenedor-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: auto;
+  gap: 30px;
+}
+
+.col-footer {
+  flex: 1;
+  min-width: 220px;
+}
+
+.col-footer h4{
+  font-size: 18px;
+  border-bottom: 2px solid #d32f2f;
+  display: inline-block;
+  margin-bottom: 15px;
+  color: #fff;
+}
+
+.col-footer ul {
+  list-style: none;
+  padding: 0;
+}
+
+.col-footer ul li {
+  margin-bottom: 12px;
+  font-size: 22px;
+}
+
+.col-footer ul li a, p {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 20px;
+}
+
+.col-footer ul li a:hover {
+  color: #fff;
+}
+
+.logo-info h2{
+  font-size: 26px;
+  margin-bottom: 12px;
+  color: #fff;
+  padding: 0px 30px;
+}
+
+.logo-icon {
+  font-size: 30px;
+  margin-right: 6px;
+}
+
+.btn-ubicacion {
+  margin-top: 20px;
+  padding: 12px 22px;
+  background-color: #000000;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.redes-sociales a {
+  display: inline-block;
+  margin-right: 12px;
+}
+
+.redes-sociales img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media screen and (max-width: 768px) {
+  header {
+    height: 400px;
+    padding: 20px;
+    background-position: center;
+    background-size: cover;
+  }
+ 
+  .logo-large {
+    width: 440px;
+    margin-top: 10px;
+  }
+  .navbar-container {
+    padding: 5px ;
+    gap: 10px;
+  }
+  .navbar-left {
+    gap: 10px;
+  }
+  .navbar-right {
+    gap: 10px;
+    margin-right: 10px;
+  }
+  .btn-categorias {
+    font-size: 10px;
+    padding: 5px;
+  }
+  .dropdown-categorias {
+    width: 130px;
+  }
+  .item-categoria {
+    font-size: 12px;
+    padding: 8px 5px;
+  }
+  .form-buscador {
+    max-width: 210px;
+  }
+  .input-buscador {
+    font-size: 10px;
+    padding: 8px 10px;
+  }
+  .boton-buscador {
+    font-size: 10px;
+    padding: 8px 14px;
+  }
+  .icono-link i {
+    font-size: 0.9em;
+    margin-right:12px;
+  }
+
+  #hamburguesa {
+    font-size: 1.6rem;
+    top: 20px;
+    right: 10px;
+  }
+  #cerrarHamburguesa {
+    font-size: 2rem;
+    margin-bottom: 20px;
+  }
+  .menuHamburguesa {
+    width: 75%; 
+    padding: 15px;
+    text-align: left; 
+  }
+  .menuHamburguesa ul {
+    align-items: flex-start; 
+  }
+  .menuHamburguesa .lihamburguesa {
+    font-size: 1em;
+    padding: 8px 0;
+    text-align: left;
+    width: 100%;
+  }
+  .menuHamburguesa .lihamburguesa a {
+    padding-left: 10px;
+    font-size: 1em;
+  }
+  .menuHamburguesa #libienvenido,
+  .menuHamburguesa .infocliente {
+    text-align: left;
+    padding-left: 10px;
+    font-size: 0.95em;
+  }
+  .menuHamburguesa #lilinea {
+    text-align: center;
+    font-size: 0.8em;
+  }
+  .whasapp {
+    bottom: 15px;
+    right: 15px;
+  }
+  .whatsapp-btn {
+    width: 45px;
+    height: 45px;
+    font-size: 22px;
+  }
+  .carritoemoti a {
+    width: 45px;
+    height: 45px;
+    font-size: 22px;
+  }
+  .sobre-nosotros {
+    padding: 30px 20px;
+  }
+  .contenedor-nosotros {
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+  }
+  .imagen-nosotros {
+    flex: none;
+    width: 100%;
+  }
+  .superposicion-video {
+    position: absolute;
+    bottom: 10px;
+    left: 180px;
+    width: 130px;
+    border-radius: 10px;
+  }
+  .informacion-contacto {
+    display: none;
+  }
+  .texto-nosotros h2 {
+    font-size: 1.5rem;
+  }
+  .texto-nosotros p {
+    font-size: 1rem;
+    color: #333;
+  }
+  .boton-reproducir {
+    font-size: 1.5rem;
+    padding: 8px;
+  }
+  .boton {
+    font-size: 1rem;
+    padding: 8px 15px;
+  }
+  .pie_estadistico {
+    width: 100%;
+    height: auto;
+    max-width: 300px; /* Puedes ajustar esto según tu diseño */
+  }
+  .categorias {
+    justify-content: flex-start; /* Alinea los botones a la izquierda en lugar de centrar */
+    gap: 10px; /* Menor espacio entre botones */
+  }
+  .categorias button {
+    padding: 12px 20px; /* Tamaño reducido en dispositivos móviles */
+    font-size: 16px; /* Texto ligeramente más pequeño */
+  }
+  .categorias button {
+    padding: 10px 15px; /* Aún más pequeño en pantallas muy pequeñas */
+    font-size: 14px; /* Texto aún más pequeño */
+  }
+  .whatsapp-btn,
+  .carritoemoti a {
+    width: 60px;
+    height: 60px;
+    font-size: 22px;
+  }
+  .whasapp {
+    bottom: 15px;
+    right: 15px;
+  }
+  .carritoemoti {
+    bottom: 80px; /* Espacio suficiente entre botones */
+    right: 15px;
+  }
+  .reserva {
+    padding: 30px 15px;
+  }
+  .contenedor-reserva {
+    flex-direction: column;
+    align-items: center;
+  }
+  .imagen-reserva img {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    border-radius: 10px;
+  }
+  .formulario-reserva {
+    width: 100%;
+    max-width: 500px;
+    padding: 15px;
+    height: auto;
+    box-sizing: border-box;
+  }
+  .campo {
+    margin-bottom: 15px;
+  }
+  .boton {
+    width: 100%;
+    padding: 12px;
+    font-size: 1.1rem;
+  }
+  .contacto {
+    width: 100%;
+    margin-left: 0;
+    padding: 15px;
+    font-size: 1rem;
+  }
+  .contenedor-footer {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+}
+
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+  /* SOBRE NOSOTROS RESPONSIVE */
+
+  .contenedor-nosotros {
+    flex-direction: column;
+    text-align: center;
+    gap: 30px;
+  }
+
+  .imagen-nosotros,
+  .texto-nosotros {
+    flex: 1 1 100%;
+  }
+
+  .superposicion-video {
+    width: 240px; /* Más pequeña */
+    left: 60%; /* Ajustada para mantener posición */
+    bottom: 10px; /* Un poco más arriba para evitar desborde */
+  }
+
+  .miniatura-video {
+    border-radius: 8px;
+  }
+
+  .boton-reproducir {
+    font-size: 1rem;
+    padding: 6px;
+  }
+
+  .informacion-contacto {
+    font-size: 1.2rem;
+    padding: 4px 8px;
+    bottom: 5px;
+    left: 31%;
+    height: auto;
+  }
+
+  .texto-nosotros h2 {
+    font-size: 1.8rem;
+  }
+
+  .texto-nosotros p {
+    font-size: 1rem;
+  }
+
+  /* RESERVA RESPONSIVE */
+
+  .contenedor-reserva {
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+  }
+
+  .imagen-reserva img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .formulario-reserva {
+    width: 100%;
+    height: auto;
+  }
+
+  .contacto {
+    margin-left: 0;
+    width: 100%;
+    font-size: 0.9rem;
+    top: 0;
+  }
+}
+
 </style>
-
-

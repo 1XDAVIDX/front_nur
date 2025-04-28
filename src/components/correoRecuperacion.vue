@@ -32,8 +32,17 @@ export default {
 
         const apiEmail = async () => {
             try {
+                
                 codigoGenerado.value = generarCodigo();
                 comprobarEmail.value.mensaje = `Su código de recuperación es: ${codigoGenerado.value}`;
+                Swal.fire({
+                    title: "Enviando...",
+                    text: "Por favor, espera mientras Enviamos el codigo al correo.",
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                    Swal.showLoading(); 
+                    },
+                });
                 const respuesta = await axios.post("http://127.0.0.1:8000/enviar-email", comprobarEmail.value);
                 console.log(respuesta.data);
                 Swal.fire({
@@ -75,7 +84,22 @@ export default {
         const nuevaContrasena = ref({
             contraseña: "",
         });
+        const validarContrasena = (password) => {
+            const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{8,}$/;
+            return regex.test(password);
+        };
         const guardarCambiosUsuario = async () => {
+
+            const password = nuevaContrasena.value.contraseña;
+
+            if (!validarContrasena(password)) {
+                Swal.fire({
+                    icon: "warning",
+                    title: "Contraseña inválida",
+                    text: "Debe tener al menos 8 caracteres, una mayúscula, una minúscula y un carácter especial.",
+                });
+                return;
+            }
             try {
             const respuesta = await axios.put(`http://127.0.0.1:8000/editar/usuario/${comprobarEmail.value.destinatario}`, nuevaContrasena.value);
             Swal.fire({
@@ -83,7 +107,8 @@ export default {
             title: "Datos Actualizados",
             text: "se recomienda volver a iniciar sesión para ver los cambios", 
             }).then(() => {
-            cerrarModalUsuario();
+                cerrarModalUsuario();
+                router.push({ path: '/pruebaLogin' });
             
             });
             } catch (error) {
@@ -106,151 +131,163 @@ export default {
 };
 </script>
 <template>
-        <!-- Paso 1: Formulario de correo -->
-    <div class="container" v-if="!mostrarFormularioContrasena && !codigoVerificado">
-        <h1>Recuperación de contraseña</h1>
-        <form @submit.prevent="apiEmail" class="formulario">
-            <div class="form-group">
-                <label for="email" class="form-label">Correo electrónico</label>
-                <input type="email" v-model="comprobarEmail.destinatario" class="form-control" id="email" required>
-            </div>
-            <button type="submit" class="btn">Enviar código</button>
+    <div class="auth-wrapper">
+      <!-- Paso 1: Email -->
+      <section class="auth-card" v-if="!mostrarFormularioContrasena && !codigoVerificado">
+        <h1 class="auth-title">Recuperación de Contraseña</h1>
+        <form @submit.prevent="apiEmail" class="form-section">
+          <div class="form-group">
+            <label for="email" class="form-label">Correo Electrónico</label>
+            <input type="email" v-model="comprobarEmail.destinatario" id="email" required class="form-input" />
+          </div>
+          <button type="submit" class="btn-primary">Enviar Código</button>
         </form>
-    </div>
-
-        <!-- Paso 2: Verificación del código -->
-    <div class="container" v-if="mostrarFormularioContrasena && !codigoVerificado">
-    <h2>Verificación de código</h2>
-    <form @submit.prevent="verificarCodigo" class="formulario">
-        <label class="form-label">Ingrese el código recibido por correo</label>
-        <div class="code-input-group">
-        <input type="text" maxlength="1" class="code-box" v-model="codigoIngresado[0]">
-        <input type="text" maxlength="1" class="code-box" v-model="codigoIngresado[1]">
-        <input type="text" maxlength="1" class="code-box" v-model="codigoIngresado[2]">
-        <input type="text" maxlength="1" class="code-box" v-model="codigoIngresado[3]">
-        <input type="text" maxlength="1" class="code-box" v-model="codigoIngresado[4]">
-        <input type="text" maxlength="1" class="code-box" v-model="codigoIngresado[5]">
-        </div>
-        <button type="submit" class="btn">Verificar código</button>
-    </form>
-    </div>
-
-    <!-- Paso 3: Cambio de contraseña -->
-    <div class="container" v-if="codigoVerificado">
-        <h2>Actualizar contraseña</h2>
-        <form @submit.prevent="guardarCambiosUsuario" class="formulario">
-            <div class="form-group">
-                <label for="nuevaContrasena" class="form-label">Nueva Contraseña</label>
-                <input type="password" v-model="nuevaContrasena.contraseña" class="form-control" id="nuevaContrasena" required>
-            </div>
-            <button type="submit" class="btn">Actualizar Contraseña</button>
+      </section>
+  
+      <!-- Paso 2: Código -->
+      <section class="auth-card" v-if="mostrarFormularioContrasena && !codigoVerificado">
+        <h2 class="auth-title">Verificación de Código</h2>
+        <form @submit.prevent="verificarCodigo" class="form-section">
+          <label class="form-label">Ingrese el código enviado</label>
+          <div class="code-group">
+            <input v-for="(char, index) in codigoIngresado" :key="index" v-model="codigoIngresado[index]" maxlength="1" class="code-input" />
+          </div>
+          <button type="submit" class="btn-primary">Verificar Código</button>
         </form>
+      </section>
+  
+      <!-- Paso 3: Nueva contraseña -->
+      <section class="auth-card" v-if="codigoVerificado">
+        <h2 class="auth-title">Nueva Contraseña</h2>
+        <form @submit.prevent="guardarCambiosUsuario" class="form-section">
+          <div class="form-group">
+            <label for="newPass" class="form-label">Contraseña Nueva</label>
+            <input type="password" v-model="nuevaContrasena.contraseña" id="newPass" required class="form-input" />
+          </div>
+          <button type="submit" class="btn-primary">Actualizar</button>
+        </form>
+      </section>
     </div>
-</template>
+  </template>
 
 <style scoped>
-.container {
-    background-color: #ffffff;
-    width: 100%;
-    max-width: 480px;
-    padding: 40px 30px;
-    border-radius: 16px;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+.auth-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px;
+  background-color: #f2f4f8;
+  min-height: 100vh;
 }
 
-h1, h2 {
-    color: #333;
-    font-size: 1.8rem;
-    margin-bottom: 25px;
-    text-align: center;
+.auth-card {
+  background: #fff;
+  max-width: 480px;
+  width: 100%;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
-.formulario {
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
-    width: 100%;
+.auth-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 24px;
+  text-align: center;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .form-group {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .form-label {
-    font-weight: 600;
-    color: #444;
-    margin-bottom: 10px;
-    font-size: 1rem;
-    text-align: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #555;
+  margin-bottom: 6px;
 }
 
-.form-control {
-    padding: 12px 15px;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    outline: none;
-    transition: border-color 0.3s, box-shadow 0.3s;
-    width: 100%;
+.form-input {
+  padding: 12px;
+  font-size: 1rem;
+  border-radius: 10px;
+  border: 1px solid #dcdcdc;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  background-color: #fcfcfc;
 }
 
-.form-control:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.15);
+.form-input:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 6px rgba(52, 152, 219, 0.2);
+  outline: none;
 }
 
-.btn {
-    background-color: #007bff;
-    color: #fff;
-    padding: 12px;
-    font-size: 1rem;
-    font-weight: 600;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
+.btn-primary {
+  background-color: #3498db;
+  color: white;
+  padding: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.3s;
 }
 
-.btn:hover {
-    background-color: #0056b3;
+.btn-primary:hover {
+  background-color: #2980b9;
 }
 
-.code-input-group {
+.code-group {
   display: flex;
   justify-content: center;
-  gap: 12px;
-  margin: 20px 0;
+  gap: 10px;
 }
 
-.code-box {
-  width: 50px;
-  height: 60px;
-  font-size: 2rem;
+.code-input {
+  width: 48px;
+  height: 56px;
+  font-size: 1.8rem;
+  font-weight: bold;
   text-align: center;
   border: 2px solid #ccc;
-  border-radius: 12px;
-  outline: none;
+  border-radius: 10px;
   transition: border-color 0.3s, box-shadow 0.3s;
-  background-color: #f9f9f9;
+  background-color: #f5f6fa;
 }
 
-.code-box:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.15);
-  background-color: #fff;
+.code-input:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 8px rgba(52, 152, 219, 0.25);
+  background-color: white;
+  outline: none;
 }
 
 @media (max-width: 600px) {
-  .code-box {
-    width: 40px;
+  .auth-card {
+    padding: 28px 20px;
+  }
+
+  .code-input {
+    width: 42px;
     height: 50px;
     font-size: 1.5rem;
+  }
+
+  .btn-primary {
+    font-size: 0.95rem;
   }
 }
 </style>

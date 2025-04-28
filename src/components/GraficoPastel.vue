@@ -26,7 +26,7 @@ export default {
       }
 
       const productosOrdenados = [...props.productosVendidos].sort((a, b) => b.cantidad - a.cantidad);
-      const top3 = productosOrdenados.slice(0, 5).map(p => p.nombre_producto);
+      const top3 = productosOrdenados.slice(0, 3).map(p => p.nombre_producto);
 
       const data = props.productosVendidos.map(p => ({
         name: p.nombre_producto,
@@ -62,7 +62,7 @@ export default {
         legend: {
           data: top3, // solo los 3 más vendidos
           orient: "horizontal",
-          top: 0,
+          top: 360,
           textStyle: {
             fontSize: 13,
             color: "#666",
@@ -112,11 +112,13 @@ export default {
   margin: auto;
   padding: 1rem;
   
+  
 }
 
 .grafico-pie {
   width: 100%;
   height: 400px;
   min-height: 300px;
+  
 }
 </style>

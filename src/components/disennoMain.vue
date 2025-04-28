@@ -326,8 +326,8 @@ export default {
     // boton de whatsapp
     
     function enviarMensajeWhatsapp() {
-      const numero = "573508381030";
-      const mensaje =encodeURIComponent("Hola, quiero ver el catalogo");
+      const numero = "573123848279";
+      const mensaje =encodeURIComponent("Tienes un catalogo");
       const url = `https://wa.me/${numero}?text=${mensaje}`;
       window.open(url, "_blank");
     }
@@ -338,7 +338,7 @@ export default {
     const datosUsuario = ref({}); // Almacena los datos del usuario
 
     const abrirModalUsuario = () => {
-      if (memoria?.direccion == '') {
+      if (memoria?.direccion == null) {
             Swal.fire({
               icon: "warning",
               title: "Actualiza tus datos",
@@ -421,7 +421,7 @@ export default {
 
     // Variables reactivas
     
-    const productosPorPagina = 3; // Número de productos por página
+    const productosPorPagina = 6; // Número de productos por página
     const paginaActualProductos = ref(1); // Página actual
     const productosPaginados = ref([]); // Productos que se mostrarán en la página actual
 
@@ -452,12 +452,15 @@ export default {
 
     const productosCasiAgotados= ref([]);
     const productosAgotados= ref([]);
+    console.log(productosCasiAgotados.value)
+    console.log(productosAgotados.value)
     // Función para consultar productos desde la API
     const consultaProducto = async () => {
       try {
         const respuesta = await axios.get("http://127.0.0.1:8000/consultarProductos");
         data.value = respuesta.data.map((item) => ({
           ...item,
+          stock: Number(item.stock),
           cantidadProducto: 1, // Agregar cantidad inicial
         }));
 
@@ -474,13 +477,11 @@ export default {
         }
 
          // Llenar las variables productosCasiAgotados y productosAgotados
-          console.log("Productos antes del filtro:", data.value);
-          productosCasiAgotados.value = data.value.filter((producto) => producto.stock > 0 && producto.stock <= 5);
-          productosAgotados.value = data.value.filter((producto) => producto.stock === 0);
-          console.log("Productos casi agotados:", productosCasiAgotados.value);
-          console.log("Productos agotados:", productosAgotados.value);
-
-
+        console.log("Productos antes del filtro:", data.value);
+        productosCasiAgotados.value = data.value.filter((producto) => producto.stock > 0 && producto.stock <= 5);
+        productosAgotados.value = data.value.filter((producto) => producto.stock === 0);
+        console.log("Productos casi agotados:", productosCasiAgotados.value);
+        console.log("Productos agotados:", productosAgotados.value);
 
 
 
@@ -507,7 +508,14 @@ export default {
       }
     );
 
- 
+    // Comentarios de clientes
+    const comentarios = ref([
+      { nombre: 'Juan Pérez', comentario: 'Excelente servicio, productos de alta calidad.' },
+      { nombre: 'Maria García', comentario: 'Muy satisfecha con mi compra, atención rápida y amable.' },
+      { nombre: 'Carlos Ramírez', comentario: 'Gran variedad de productos para todas las mascotas.' },
+      { nombre: 'Sofía López', comentario: 'El envío fue rápido y los productos llegaron en buen estado.' },
+      { nombre: 'Fernando González', comentario: 'Buenos precios y excelente atención al cliente.' }
+    ]);
 
     const onComprar = (productoId) => {
       router.push({ path: '/comprar', query: { productoId: productoId } });
@@ -519,7 +527,6 @@ export default {
     const onAgregarCarrito = (productoId) =>{
       router.push({ path: '/agregarCarrito', query: { productoId: productoId } });
     }
-
     const cerrarSesion = () => {
       Swal.fire({
         title: 'Cerrando sesión...',
@@ -552,103 +559,20 @@ export default {
     const mensajes = ref([
       
     ]); 
-    const comprobarEmail = ref({
-            destinatario: "davidgelvez122j@gmail.com",
-            asunto: "",
-            mensaje: "",
-    });
-    const apiEmail = async () => {
-            try {
-               
-                const respuesta = await axios.post("http://127.0.0.1:8000/enviar-email", comprobarEmail.value);
-                console.log(respuesta.data);
-                Swal.fire({
-                    icon: "success",
-                    title: "Correo enviado",
-                    
-                }).then(() => {
-                   router.go(0);
-                });
-            } catch (error) {
-                console.error("Error al enviar el correo", error);
-                Swal.fire({
-                    icon: "error",
-                    title: "Error",
-                    text: "No se pudo enviar el correo. Intente nuevamente.",
-                });                
-            }
-    };
-    const copiarCorreo = () => {
-      const email = comprobarEmail.value.destinatario; // Obtén el correo
-      if (email) {
-        navigator.clipboard.writeText(email).then(() => {
-          Swal.fire({
-            icon: 'success',
-            title: 'Correo Copiado',
-            text: 'El correo electrónico ha sido copiado al portapapeles.',
-          });
-        }).catch(err => {
-          console.error('Error al copiar el correo:', err);
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'No se pudo copiar el correo al portapapeles.',
-          });
-        });
-      }
-    };
-
-    const mensajesWhatsapp = ref([
-      "Hola, quiero más información sobre el producto.",
-      "¿Tienen descuentos disponibles?",
-      "¿Cuánto tarda el envío a mi ciudad?"
-    ]);
-
-    const mostrarWhatsapp = ref(false);
-
-    // Función para borrar un mensaje específico
-    const borrarMensajeWhatsapp = (index) => {
-      mensajesWhatsapp.value.splice(index, 1);
-    };
-
-    // Función para borrar todos los mensajes
-    const borrarTodosMensajesWhatsapp = () => {
-      mensajesWhatsapp.value = [];
-    };
-
-    // Función para refrescar los mensajes (puedes personalizarla)
-    const refrescarMensajesWhatsapp = () => {
-      // Simula la carga de nuevos mensajes
-      mensajesWhatsapp.value = [
-        "Hola, ¿pueden enviarme el catálogo?",
-        "¿Cuáles son los métodos de pago disponibles?",
-        "¿Tienen promociones en accesorios para mascotas?"
-      ];
-    };
-
 
 
     return {
-      mensajesWhatsapp,
-      mostrarWhatsapp,
-      borrarTodosMensajesWhatsapp,
-      refrescarMensajesWhatsapp,
-
-
-      comprobarEmail,
-      apiEmail,
-      copiarCorreo,
       cerrarSesion,
-      mostrarNotificaciones,
-      mensajes,
       productosCasiAgotados,
       productosAgotados,
-
+      mostrarNotificaciones,
+      mensajes,
       memoria,
       enviarBusqueda,
       busquedaBarraadmin,
       mostrarCategorias,
       data,
+      comentarios,
       getImagenUrl,
       pedido,
       usuariosPaginados,
@@ -724,39 +648,42 @@ export default {
       <img src="./img/logo.png" alt="Logo de" class="logo-large">
     </header>
 
-    <nav class="navbar" :class="{ 'navbar-scroll': scrollUp }">
-  <div class="navbar-container">
-    <!-- IZQUIERDA -->
-    <div class="navbar-left">
-      <!-- Categorías -->
-      <div class="contenedor-categorias relative" @click.stop>
-        <button @click="mostrarCategorias = !mostrarCategorias" class="btn-categorias">
-          Categorías <i class="fas fa-chevron-down ml-1"></i>
-        </button>
-        <ul v-if="mostrarCategorias" class="dropdown-categorias">
-          <li v-for="categoria in categorias" :key="categoria">
-            <button 
-              @click.stop="seleccionarCategoria(categoria); mostrarCategorias = false"
-              :class="{ activo: categoria === categoriaSeleccionada }"
-              class="item-categoria">
-              {{ categoria }}
-            </button>
-          </li>
-        </ul>
-      </div>
+    <nav class="navbar">
+      <ul class="navbar-list">
+          <!-- Botón desplegable de categorías -->
+        <li class="contenedor-categorias relative">
+          <button @click="mostrarCategorias = !mostrarCategorias" class="btn-categorias">
+            Categorías <i class="fas fa-chevron-down ml-1"></i>
+          </button>
 
-      <!-- Buscador -->
-      <div class="contenedor-buscador">
-        <form @submit.prevent="enviarBusqueda" class="form-buscador">
-          <input type="text" v-model="busquedaBarraadmin" placeholder="Buscar productos..." class="input-buscador" />
-          <button type="submit" class="boton-buscador"><i class="fas fa-search"></i></button>
-        </form>
-      </div>
-    </div>
+          <!-- Lista desplegable -->
+          <ul v-if="mostrarCategorias" class="dropdown-categorias">
+            <li v-for="categoria in categorias" :key="categoria">
+              <button 
+                @click="seleccionarCategoria(categoria); mostrarCategorias = false"
+                :class="{ activo: categoria === categoriaSeleccionada }"
+                class="item-categoria">
+                {{ categoria }}
+              </button>
+            </li>
+          </ul>
+        </li>
 
-    <!-- DERECHA -->
-    <div class="navbar-right">
-      <li class="li_dos contenedor-notificaciones">
+        <!-- Buscador estilizado -->
+        <li class="contenedor-buscador">
+          <form @submit.prevent="enviarBusqueda" class="form-buscador">
+            <input
+              type="text"
+              v-model="busquedaBarraadmin"
+              placeholder="Buscar productos..."
+              class="input-buscador"
+            />
+            <button type="submit" class="boton-buscador"><i class="fas fa-search"></i></button>
+          </form>
+        </li>
+
+
+        <li class="li_dos contenedor-notificaciones">
           <button @click="mostrarNotificaciones = !mostrarNotificaciones" class="btn-notificaciones">
             <i class="fas fa-bell"></i>
           </button>
@@ -792,38 +719,18 @@ export default {
             </ul>
           </div>
         </li>
-
-        <div class="contenedor-whatsapp">
-          <button @click="mostrarWhatsapp = !mostrarWhatsapp" class="btn-whatsapp">
-            <i class="fab fa-whatsapp"></i>
-          </button>
-          <div v-if="mostrarWhatsapp" class="nube-whatsapp">
-            <h3>📱 Chat Boot WhatsApp</h3>
+        <li class="li_dos"><router-link to="/whasappControl"><i class="fab fa-whatsapp"></i> </router-link></li>
+        <!-- Menú hamburguesa -->
+        <div>
+          <span id="hamburguesa" @click="toggleMenu" class="far fa-user-circle"></span>
+          <nav :class="['menuHamburguesa', { openHamburguesa: menuAbierto }]">
+            <span id="cerrarHamburguesa" @click="toggleMenu">&#128938;</span>
             <ul>
-              <li v-for="(mensaje, index) in mensajesWhatsapp" :key="index">
-               
-                
-              </li>
-            </ul>
-            <div class="acciones-whatsapp">
-              <button class="btn-refrescar-whatsapp" @click="refrescarMensajesWhatsapp">🔄 Refrescar</button>
-              <button class="btn-borrar-todos-whatsapp" @click="borrarTodosMensajesWhatsapp">🗑️ Cerrar Secion</button>
-            </div>
-          </div>
-        </div>
+              <li id="libienvenido">¡Bienvenido!</li>
+              <li class="infocliente">{{ nombreUsuario }}</li>
 
-      <span id="hamburguesa" @click="toggleMenu" class="far fa-user-circle"></span>
-    </div>
-  </div>
-
-  <!-- Menú Hamburguesa -->
-  <nav :class="['menuHamburguesa', { openHamburguesa: menuAbierto }]">
-    <span id="cerrarHamburguesa" @click="toggleMenu">&#128938;</span>
-    <ul>
-      <li id="libienvenido">¡Bienvenido!</li>
-      <li class="infocliente">{{ nombreUsuario }}</li>
-      <li id="lilinea">-----------------------------------------</li>
-      <li class="menuInfoCliente" @click="abrirModalUsuario"><i class="fas fa-user-edit"></i> PERFIL</li>
+              <li id="lilinea">-----------------------------------------</li>
+              <li class="menuInfoCliente" @click="abrirModalUsuario"><i class="fas fa-user-edit"></i> PERFIL</li>
               <li class="lihamburguesa"><router-link to="/registroProducto"><i class="fas fa-box"></i> Registrar Producto</router-link></li>
               <li class="lihamburguesa"><router-link to="/modificarProducto"><i class="fas fa-edit"></i> Modificar Producto</router-link></li>
               <li class="lihamburguesa"><router-link to="/eliminarProducto"><i class="fas fa-trash-alt"></i> Eliminar Producto</router-link></li>
@@ -832,11 +739,12 @@ export default {
               <li class="lihamburguesa"><router-link to="/pruebaLogin"><i class="fas fa-sign-in-alt"></i> Ingresar Usuario</router-link></li>
               <li class="lihamburguesa"><button type="button" class="btn btn-save" @click="cerrarSesion">cerrar Sesión</button></li>
 
-      <li id="lilinea">-----------------------------------------</li>
-    </ul>
-  </nav>
-</nav>
-
+              <li id="lilinea">-----------------------------------------</li>
+            </ul>
+          </nav>
+        </div>
+      </ul>
+    </nav>
 
     <section class="modal" v-if="modalUsuarioAbierto" aria-hidden="!modalUsuarioAbierto">
       <div class="modal__container" role="dialog" aria-labelledby="modalUsuarioTitle">
@@ -901,7 +809,10 @@ export default {
       </div>
     </section>
     
+    <h2>¡Bienvenido {{nombreUsuario}}!</h2>
+
     
+
     <div class="centro_control">
         <div class="left-section">
             
@@ -909,7 +820,16 @@ export default {
                 <GraficoPastel :productosVendidos="productosVendidos" />
             </div>
         </div>
+        
     </div>
+
+
+
+
+
+
+
+
 
     <div class="centro_control">
       <div class="right-section">
@@ -937,31 +857,13 @@ export default {
 
         <!-- Paginación -->
         <div class="paginacion">
-            <button
-              @click="cambiarPagina(paginaActual - 1)"
-              :disabled="paginaActual === 1"
-              class="boton-paginacion"
-            >
-              ⬅ Anterior
-            </button>
-            <button
-              v-for="pagina in totalPaginas"
-              :key="pagina"
-              @click="cambiarPagina(pagina)"
-              :class="['boton-paginacion', { activo: pagina === paginaActual }]"
-            >
-              {{ pagina }}
-            </button>
-            <button
-              @click="cambiarPagina(paginaActual + 1)"
-              :disabled="paginaActual === totalPaginas"
-              class="boton-paginacion"
-            >
-              Siguiente ➡
-            </button>
-          </div>
+          <button @click="cambiarPagina(paginaActual - 1)" :disabled="paginaActual === 1">Anterior</button>
+          <span>Página {{ paginaActual }} de {{ totalPaginas }}</span>
+          <button @click="cambiarPagina(paginaActual + 1)" :disabled="paginaActual === totalPaginas">Siguiente</button>
+        </div>
       </div>
     </div>
+
 
     <!-- <section class="modal" v-if="modalPedidoAbierto" aria-hidden="!modalPedidoAbierto">
       <div class="modal__container" role="dialog" aria-labelledby="modalPedidoTitle">
@@ -977,14 +879,20 @@ export default {
     </section> -->
     
 
-    <div class="whasapp">
-      <button @click="enviarMensajeWhatsapp" class="whatsapp-btn">
-        <i class="fab fa-whatsapp"></i> 
-      </button>
+    <div class="carritocompra">
       <div class="carritoemoti">
         <router-link to="/carritoCompra">🛒</router-link>
       </div>
     </div>
+
+    <div class="whasapp">
+      <button @click="enviarMensajeWhatsapp" class="whatsapp-btn">
+        <i class="fab fa-whatsapp"></i> 
+      </button>
+    </div>
+
+    
+
 
     <div class="categorias">
       <button 
@@ -995,6 +903,9 @@ export default {
         {{ categoria }}
       </button>
     </div>
+
+    
+
 
     <div class="box">
       <!-- Sección de productos -->
@@ -1044,98 +955,78 @@ export default {
         <button
           @click="cambiarPaginaProductos(paginaActualProductos - 1)"
           :disabled="paginaActualProductos === 1"
-          class="boton-paginacion"
-        >⬅ Anterior
-        </button>
-        <button
-          v-for="pagina in totalPaginasProductos"
-          :key="pagina"
-          @click="cambiarPaginaProductos(pagina)"
-          :class="['boton-paginacion', { activo: pagina === paginaActualProductos }]"
         >
-          {{ pagina }}
+          Anterior
         </button>
-
+        <span>Página {{ paginaActualProductos }} de {{ totalPaginasProductos }}</span>
         <button
           @click="cambiarPaginaProductos(paginaActualProductos + 1)"
           :disabled="paginaActualProductos === totalPaginasProductos"
-          class="boton-paginacion"
         >
-          Siguiente ➡
+          Siguiente
         </button>
       </div>
     </div>
+      
 
-    <section class="sobre-nosotros" id="sobre-nosotros">
-    <div class="contenedor-nosotros">
-      <div class="imagen-nosotros">
-        <img src="./img/Nosotros2.jpg" alt="Viajeros" />
-        <div class="superposicion-video">
-          <img src="./img/video.jpg" alt="Vista previa del video" class="miniatura-video" />
-          <button class="boton-reproducir">▶</button>
-        </div>
-        <div class="informacion-contacto">
-          <span>Contáctenos</span>
-          <p>+57 3508381030</p>
-        </div>
-      </div>
-      <div class="texto-nosotros">
-        <h2>Sobre nosotros</h2>
-        <p>
-          ¡Es hora de hacer brillar tu negocio! Presenta la información más
-          importante al respecto y demuestra por qué tu negocio es único. Deja
-          claro qué puede esperar el destinatario de ti y qué beneficios puedes
-          aportarle.
-        </p>
-        <p>
-          ¡Es hora de hacer brillar tu negocio! Presenta la información más
-          importante al respecto y demuestra por qué tu negocio es único. Deja
-          claro qué puede esperar el destinatario de ti y qué beneficios puedes
-          aportarle.
-        </p>
-        
-      </div>
-    </div>
-  </section>
-
-  <section class="reserva">
-    <div class="contenedor-reserva">
-      <div class="imagen-reserva">
-        <img src="./img/mascotas.jpg" alt="Accesorios para mascotas" />
-      </div>
-      <div class="formulario-reserva">
-        <h2>Tienes Dudas?</h2>
-        <form @submit.prevent="apiEmail">
-          <div class="campo">
-            <label for="email">Correo electrónico Mascotas</label>
-            <div class="email-container">
-              <input type="email" v-model="comprobarEmail.destinatario" id="email" placeholder="Correo electrónico" required readonly />
-              <button @click="copiarCorreo" class="btn-copiar">📋 Copiar</button>
+    <!-- Sección de comentarios -->
+    <section class="comments-section" id="comments">
+      <h2>Lo Que Dicen Nuestros Clientes</h2>
+      <div class="cards">
+        <ul>
+          <li v-for="(comentario, index) in comentarios" :key="index" class="card">
+            <div class="card-content">
+              <strong>{{ comentario.nombre }}:</strong><br>
+              {{ comentario.comentario }}
             </div>
-          </div>
-          
-          <div class="campo">
-            <label for="email">Correo electrónico</label>
-            <input type="email" v-model="comprobarEmail.asunto" id="email" placeholder="Correo electrónico" required />
-          </div>
-          <div class="campo">
-            <label for="mensaje">Mensaje</label>
-            <textarea id="mensaje" v-model="comprobarEmail.mensaje" placeholder="Escribe tu mensaje aquí..."></textarea>
-          </div>
-          <button type="submit" class="boton">ENVIAR PEDIDO</button>
-        </form>
+          </li>
+        </ul>
       </div>
-      <aside class="contacto" id="contacto">
-        <h3>Contacto</h3>
-        <p><strong>Teléfono:</strong> +57 3508381030</p>
-        <p><strong>Email:</strong> TiendamascotasR@gmail.com</p>
-        <p><strong>Ubicación:</strong>Mosquera Cundinamarca  CL. 17 #12 16</p>
-        <h3>Horario de atención</h3>
-        <p>Lunes - Viernes: 9am a 6pm</p>
-        <p>Sábado: 10am a 2pm</p>
-      </aside>
-    </div>
-  </section>  
+    </section>
+
+     <!-- Formulario de contacto -->
+     <section class="contact-form" id="contact">
+      <h2>Mensajeria</h2>
+      <form>
+        <input type="text" placeholder="Nombre" required>
+        <input type="email" placeholder="Correo electrónico" required>
+        <textarea placeholder="Mensaje" required></textarea>
+        <button type="submit">Enviar</button>
+      </form>
+    </section>
+
+    <section class="location" id="location">
+      <h2>¿Dónde Estamos?</h2>
+      <p>
+        Estamos ubicados en la calle 123, en el corazón de la ciudad. Visítanos para obtener asesoría personalizada y conocer nuestros productos de primera mano. También ofrecemos servicio de entrega a domicilio en toda la ciudad.
+      </p>
+    </section>
+    <!-- Footer -->
+    <section class="footer">
+      <div class="box-container">
+        <div class="box">
+          <h3><i class="fas fa-paw"></i> Mascotas</h3>
+          <p>Los mejores productos para tus mascotas. Calidad garantizada, amor asegurado.</p>
+          <p class="links"><i class="fas fa-clock"></i> Lunes - Viernes</p>
+          <p class="days">7:00AM - 11:00PM</p>
+        </div>
+        <div class="box">
+          <h3>Información de Contacto</h3>
+          <p><i class="fas fa-phone"></i> 1245-147-2589</p>
+          <p><i class="fas fa-envelope"></i> info@mascotas.com</p>
+          <p><i class="fas fa-map-marker-alt"></i> Calle 123, Ciudad, País</p>
+        </div>
+        <div class="box">
+          <h3>Newsletter</h3>
+          <p>Suscríbete para recibir las últimas novedades</p>
+          <input type="email" placeholder="Tu Correo" class="email">
+          <a href="#" class="btn">Suscribirse</a>
+        
+        </div>
+      </div>
+      <div class="credit">&copy; 2024 Mascotas. Todos los derechos reservados.</div>
+    </section>
+    
 </div>
 
   <div v-if="modalAbierto" class="modal-overlay">
@@ -1184,8 +1075,10 @@ export default {
       </button>
     </div>
   </div>
+  
 </template>
 <style >
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -1193,243 +1086,16 @@ export default {
 }
 
 
-/* Contenedor de WhatsApp */
-.contenedor-whatsapp {
-  position: relative;
-}
-
-/* Botón de WhatsApp */
-/* Botón de WhatsApp */
-.btn-whatsapp {
-  background: none;
-  border: none;
-  font-size: 2em; /* Aumenta el tamaño de la fuente */
-  cursor: pointer;
-  color: #25D366; /* Color verde de WhatsApp */
-  transition: color 0.3s ease, transform 0.2s ease;
-  width: 50px; /* Aumenta el ancho del botón */
-  height: 50px; /* Aumenta la altura del botón */
-  border-radius: 50%; /* Mantiene el botón circular */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Agrega una sombra */
-}
-
-.btn-whatsapp:hover {
-  color: #1ebe5d;
-}
-
-/* Nube de WhatsApp */
-.nube-whatsapp {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background-color: white;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  width: 400px;
-  max-height: 400px;
-  overflow-y: auto;
-  padding: 15px;
-  z-index: 1000;
-  
-}
-
-/* Título de la nube */
-.nube-whatsapp h3 {
-  margin: 0 0 10px;
-  font-size: 1.2em;
-  color: #333;
-}
-
-/* Lista de mensajes */
-.nube-whatsapp ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* Elementos de la lista */
-.nube-whatsapp li {
-  padding: 10px;
-  border-bottom: 1px solid #eee;
-  font-size: 0.9em;
-  color: #555;
-  transition: background-color 0.3s ease;
-}
-
-.nube-whatsapp li:last-child {
-  border-bottom: none;
-}
-
-.nube-whatsapp li:hover {
-  background-color: #f9f9f9;
-  cursor: pointer;
-}
-
-/* Botón de borrar mensaje */
-.btn-borrar-whatsapp {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 12px;
-  margin-left: 10px;
-  transition: background-color 0.3s ease;
-}
-
-.btn-borrar-whatsapp:hover {
-  background-color: #c82333;
-}
-
-/* Contenedor de acciones (refrescar y borrar todos) */
-.acciones-whatsapp {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 10px;
-}
-
-/* Botón de refrescar mensajes */
-.btn-refrescar-whatsapp {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s ease;
-}
-
-.btn-refrescar-whatsapp:hover {
-  background-color: #0056b3;
-}
-
-/* Botón de borrar todos los mensajes */
-.btn-borrar-todos-whatsapp {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s ease;
-}
-
-.btn-borrar-todos-whatsapp:hover {
-  background-color: #c82333;
-}
-
-
-
-.li_dos {
-  font-size: 1.5em;
-}
-
-/* Header */
-header {
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.6), rgba(50, 50, 50, 0.8)), url('../img/portada.jpg') no-repeat center/cover;
-  color: #fff;
-  text-align: center;
-  height: 600px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.header-title {
-  font-size: 3.5em;
-  font-weight: bold;
-  color: #FFA500;
-  margin-bottom: 10px;
-}
-
-.header-subtitle {
-  font-size: 1.6em;
-  max-width: 600px;
-  color: #fffb00;
-}
-/* Wave */
-.wave {
-  background-image: url('https://www.svgrepo.com/show/166897/wave.svg');
-  height: 80px;
-  background-size: cover;
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-}
-
-/* NAVBAR BASE */
-.navbar {
-  background-color: #333;
-  padding: 10px 20px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  transition: top 0.3s ease-in-out;
-}
-.navbar.navbar-scroll {
-  top: -80px; /* Altura aproximada del navbar */
-}
-.navbar-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-/* IZQUIERDA */
-.navbar-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-}
-
-/* DERECHA */
-.navbar-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-right:80px;
-}
-
-.icono-link {
-  color: white;
-  font-size: 1.5em;
-  transition: color 0.3s;
-}
-
-.icono-link:hover {
-  color: #00ffcc;
-}
-
-/* Aumentar solo los íconos de notificaciones y WhatsApp */
-
-/* Contenedor de notificaciones */
 .contenedor-notificaciones {
   position: relative;
 }
 
-/* Botón de notificaciones (campana) */
 .btn-notificaciones {
   background: none;
   border: none;
   font-size: 1.5em;
   cursor: pointer;
-  color: #ffffff;
+  color: white;
   transition: color 0.3s ease;
 }
 
@@ -1437,7 +1103,6 @@ header {
   color: #007bff;
 }
 
-/* Nube de notificaciones */
 .nube-notificaciones {
   position: absolute;
   top: 100%;
@@ -1446,42 +1111,41 @@ header {
   border: 1px solid #ccc;
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  width: 400px;
-  max-height: 400px;
-  overflow-y: auto;
+  width: auto; /* Ajusta el ancho automáticamente según el contenido */
+  max-width: 500px; /* Ancho máximo */
+  min-width: 500px; /* Ancho mínimo */
+  height: auto; /* Ajusta la altura automáticamente según el contenido */
+  max-height: 400px; /* Altura máxima */
+  overflow-y: auto; /* Agrega scroll si el contenido excede la altura máxima */
   padding: 15px;
   z-index: 1000;
 }
 
-/* Título de la nube */
 .nube-notificaciones h3 {
   margin: 0 0 10px;
   font-size: 1.2em;
   color: #333;
 }
 
-/* Lista de mensajes */
 .nube-notificaciones ul {
+  display: flex;
+  flex-direction: column; /* Alinea los elementos en columna */
+  gap: 10px; /* Espacio entre los elementos */
   list-style: none;
   padding: 0;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  
 }
 
-/* Elementos de la lista */
 .nube-notificaciones li {
+  display: block; /* Asegura que cada elemento ocupe toda la línea */
   padding: 10px;
   border-bottom: 1px solid #eee;
   font-size: 0.9em;
   color: #555;
-  transition: background-color 0.3s ease;
 }
 
 .nube-notificaciones li:last-child {
-  border-bottom: none;
+  border-bottom: none; /* Elimina la línea del último elemento */
 }
 
 .nube-notificaciones li:hover {
@@ -1489,57 +1153,12 @@ header {
   cursor: pointer;
 }
 
-
-.icono-link i {
-  font-size: 2.2em; /* Puedes subir a 2.5em si los quieres más grandes */
-  transition: color 0.3s;
+.li_dos{
+  font-size: 1.5em;
+ 
 }
 
-.icono-link i:hover {
-  color: #00ffcc;
-}
-
-/* Buscador */
-.form-buscador {
-  display: flex;
-  background-color: #f1f1f1;
-  border-radius: 25px;
-  overflow: hidden;
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
-  max-width: 400px;
-}
-
-.input-buscador {
-  flex: 1;
-  padding: 10px 15px;
-  border: none;
-  outline: none;
-  font-size: 15px;
-  background-color: transparent;
-}
-
-.boton-buscador {
-  padding: 10px 20px;
-  border: none;
-  background-color: #007bff;
-  color: white;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-.boton-buscador:hover {
-  background-color: #0056b3;
-}
-
-h2 {
-  font-size: 2rem; 
-  color: #dd0808; 
-  text-align: center;
-  margin-bottom: 20px; 
-}
-
-/* Categoría Nav */
+/* Estilos categoria nav */
 .contenedor-categorias {
   position: relative;
   display: inline-block;
@@ -1577,9 +1196,17 @@ h2 {
   margin-top: 10px;
   padding: 10px 0;
   width: 200px;
-  z-index: 999;
+  display: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
+.contenedor-categorias:hover .dropdown-categorias {
+  display: block;
+  opacity: 1;
+  transform: translateY(10px);
+}
+
+/* Estilo de cada categoría */
 .item-categoria {
   background-color: #fff;
   color: #333;
@@ -1605,83 +1232,63 @@ h2 {
   outline: none;
 }
 
-/* Opcional: Transición al desplegar */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+/* Animación para abrir/cerrar el menú */
+.dropdown-categorias {
+  display: none;
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
+.contenedor-categorias.active .dropdown-categorias {
+  display: block;
+}
+/* Navegador*/
+.navbar {
+  background-color: #ffffff;
+  padding: 10px 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-
-
-#hamburguesa{
-    color: whitesmoke;  
-    position: absolute;
-    right: 20px;
-    top: 15%;
-  }
-#hamburguesa, #cerrarHamburguesa {
-    font-size: 3rem;
-    font-weight: bolder;
-    cursor: pointer;
-    user-select: none;
-    
-}
-  
-.menuHamburguesa {
-    background-color:  #333;
-    width: 20%;
-    position: fixed;
-    top: 0;
-    right: -100%;
-    bottom: 0;
-    color: white;
-    text-align: right;
-    padding: 20px;
-    transition: left 0.3s ease-in-out;
-}
-  
-.menuHamburguesa ul {
+.navbar-list {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 0;
-  
-}
-
-.menuHamburguesa .lihamburguesa {
+  justify-content: space-between;
   list-style: none;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+
+
+.form-buscador {
   width: 100%;
-  text-align: center;
-  padding: 10px 0;
-  color: white; /* Color blanco por defecto */
-  font-size: 1.2em; /* Tamaño de fuente */
-  transition: color 0.3s ease; /* Transición suave para el color del texto */
+  max-width: 400px;
+  display: flex;
+  background-color: #f1f1f1;
+  border-radius: 25px;
+  overflow: hidden;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
 }
 
-.menuHamburguesa .lihamburguesa:hover {
-  color: #FFFF00;
+.input-buscador {
+  flex: 1;
+  padding: 10px 15px;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  background-color: transparent;
 }
 
-.menuHamburguesa .lihamburguesa a {
-  color: inherit; 
-  text-decoration: none; 
-  display: block; 
-  padding: 10px; 
-  transition: color 0.3s ease; 
+.boton-buscador {
+  padding: 10px 20px;
+  border: none;
+  background-color: #007bff;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s;
 }
 
-.menuHamburguesa .lihamburguesa a:hover {
-  color: #FFFF00; 
-}
-
-.openHamburguesa {
-    right: 0;
+.boton-buscador:hover {
+  background-color: #0056b3;
 }
 
 /* Modal de pago*/
@@ -1705,6 +1312,97 @@ h2 {
   width: 90%;
   max-width: 500px;
   position: relative;
+}
+
+.cerrar {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+}
+/*paginacion */
+.paginacion {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2rem;
+}
+
+.boton-paginacion {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  min-width: 40px;
+}
+
+.boton-paginacion:hover:not(:disabled) {
+  background-color: #e0f7fa;
+}
+
+.boton-paginacion:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.boton-paginacion.activo {
+  background-color: #4caf50;
+  color: white;
+  border-color: #4caf50;
+}
+
+.card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+
+.menuInfoCliente {
+  font-size: 1.2em;
+  cursor: pointer; 
+  transition: background-color 0.3s ease, color 0.3s ease; 
+}
+
+.menuInfoCliente:hover {
+  color: yellow; 
+  
+}
+/* Botón de Compra Múltiple */
+.btn-compra-multiple {
+  background-color: #28a745; 
+  color: white;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-compra-multiple:hover {
+  background-color: #218838; 
+  transform: scale(1.05); /* Efecto de agrandamiento */
+}
+
+.btn-compra-multiple:active {
+  background-color: #1e7e34; 
+  transform: scale(0.95); /* Efecto de reducción al hacer clic */
+}
+
+.btn-compra-multiple:focus {
+  outline: none;
+  box-shadow: 0px 0px 8px rgba(40, 167, 69, 0.8); /* Resaltado al enfocar */
 }
 
 /* Modal de usuario */
@@ -1756,332 +1454,6 @@ h2 {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-}
-/*paginacion */
-.paginacion {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  margin-top: 2rem;
-}
-
-.boton-paginacion {
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  background-color: #fff;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 500;
-  min-width: 40px;
-}
-
-.boton-paginacion:hover:not(:disabled) {
-  background-color: #e0f7fa;
-}
-
-.boton-paginacion:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.boton-paginacion.activo {
-  background-color: #4caf50;
-  color: white;
-  border-color: #4caf50;
-}
-
-/* Cards */
-.card {
-  background-color: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 10px;
-  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  width: 280px;
-  text-align: left;
-  transition: transform 0.3s, box-shadow 0.3s;
-}
-
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.2);
-}
-.cards ul {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 20px;
-  list-style: none;
-}
-
-.card-content strong {
-  color: #ff6600;
-}
-
-/* Sobre Nosotros */
-.sobre-nosotros {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 50px;
-  background: #f9f9f9;
-}
-
-.contenedor-nosotros {
-  display: flex;
-  max-width: 1200px;
-  gap: 50px;
-  align-items: center;
-}
-
-.imagen-nosotros {
-  position: relative;
-  flex: 1;
-}
-
-.imagen-nosotros img {
-  width: 100%;
-  border-radius: 10px;
-}
-
-.superposicion-video {
-  position: absolute;
-  bottom: 1px;
-  left: 74%;
-  width: 200px;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.miniatura-video {
-  width: 100%;
-  display: block;
-  border-radius: 10px;
-}
-
-.boton-reproducir {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(255, 255, 255, 0.8);
-  border: none;
-  border-radius: 50%;
-  padding: 10px;
-  font-size: 1.2rem;
-  cursor: pointer;
-}
-
-.informacion-contacto {
-  position: absolute;
-  bottom: 1%;
-  left: 49%;
-  background: orange;
-  padding: 5px;
-  border-radius: 5px;
-  height: 15%;
-  color: white;
-  font-weight: bold;
-}
-
-.texto-nosotros {
-  flex: 1;
-}
-
-.texto-nosotros h2 {
-  font-size: 2rem;
-  margin-bottom: 10px;
-}
-
-.texto-nosotros p {
-  margin-bottom: 10px;
-  color: #000000;
-}
-
-.boton {
-  padding: 10px 20px;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-}
-
-.primario {
-  background: orange;
-  color: white;
-  border-radius: 5px;
-}
-
-/*Reserva*/
-.reserva {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 50px;
-  background: #f9f9f9;
-}
-
-.contenedor-reserva {
-  display: flex;
-  max-width: 1100px; 
-  align-items: flex-start; 
-}
-
-.imagen-reserva img {
-  width: 100%;
-  max-width:470px; 
-  height: 110%;
-  max-height: 110%;
-  border-radius: 10px;
-}
-
-.formulario-reserva {
-  flex: 1;
-  background: white;
-  padding: 17px;
-  border-radius: 10px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  height: 695px; /* Mantener la altura original */
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start; /* Asegura que el contenido se alinee arriba */
-}
-
-.campo {
-  margin-bottom: 20px;
-  margin-top: -10px; /* Subir el texto de cada campo */
-}
-
-label {
-  display: block;
-  font-weight: bold;
-  margin-bottom: 5px;
-  margin-top: -10px; /* Subir los labels */
-}
-
-input,
-textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-}
-
-.boton {
-  background: orange;
-  color: white;
-  padding: 12px 20px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-.email-container {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.email-container input {
-  flex: 1;
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-}
-
-/* Botón de Copiar */
-.btn-copiar {
-  background-color: #4caf50;
-  color: white;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 5px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s ease-in-out;
-}
-
-.btn-copiar:hover {
-  background-color: #45a049;
-  transform: scale(1.05);
-}
-
-.btn-copiar:active {
-  background-color: #388e3c;
-}
-
-.btn-copiar:focus {
-  outline: none;
-}
-
-
-
-.contacto {
-  margin-left: 20px;
-  flex: 0.6;
-  background: #fff;
-  padding: 15px;
-  border-radius: 10px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  height: auto;
-  font-size: 0.85rem; 
-  position: relative;
-  top: 0px; 
-}
-
-.cerrar {
-  position: absolute;
-  top: 10px;
-  right: 15px;
-  border: none;
-  background: transparent;
-  font-size: 20px;
-  cursor: pointer;
-}
-.card-link {
-  display: block;
-  text-decoration: none;
-  color: inherit;
-}
-
-.menuInfoCliente {
-  font-size: 1.2em;
-  cursor: pointer; 
-  transition: background-color 0.3s ease, color 0.3s ease; 
-}
-
-.menuInfoCliente:hover {
-  color: yellow; 
-  
-}
-/* Botón de Compra Múltiple */
-.btn-compra-multiple {
-  background-color: #28a745; 
-  color: white;
-  padding: 12px 20px;
-  font-size: 16px;
-  font-weight: bold;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.btn-compra-multiple:hover {
-  background-color: #218838; 
-  transform: scale(1.05); /* Efecto de agrandamiento */
-}
-
-.btn-compra-multiple:active {
-  background-color: #1e7e34; 
-  transform: scale(0.95); /* Efecto de reducción al hacer clic */
-}
-
-.btn-compra-multiple:focus {
-  outline: none;
-  box-shadow: 0px 0px 8px rgba(40, 167, 69, 0.8); /* Resaltado al enfocar */
 }
 
 .btn-save {
@@ -2146,6 +1518,7 @@ input[type=number]::-webkit-outer-spin-button {
   margin: 0 5px;
 }
 
+
 .modal {
   position: fixed;
   top: 0;
@@ -2181,35 +1554,81 @@ input[type=number]::-webkit-outer-spin-button {
 #libienvenido{
   font-size: 40px;
 }
-
-.centro_control {
+#hamburguesa{
+    color: whitesmoke;
+    
+    position: absolute;
+    right: 20px;
+    top: 15%;
+  }
+#hamburguesa, #cerrarHamburguesa {
+    font-size: 3rem;
+    font-weight: bolder;
+    cursor: pointer;
+    user-select: none;
+    
+}
+  
+.menuHamburguesa {
+    background-color:  #333;
+    width: 20%;
+    position: fixed;
+    top: 0;
+    right: -100%;
+    bottom: 0;
+    color: white;
+    text-align: right;
+    padding: 20px;
+    transition: left 0.3s ease-in-out;
+}
+  
+.menuHamburguesa ul {
   display: flex;
-  justify-content: center; /* Centra el contenido horizontalmente */
-  align-items: flex-start;
-  width: 100%; /* Ocupa el 100% del contenedor padre */
-  margin: 20px auto;
-  padding: 20px;
-  border: 2px solid #ccc;
-  border-radius: 10px;
-  background: #f9f9f9;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  
 }
 
-.left-section, .right-section  {
-  width: 100%; 
-  padding: 10px;
-  text-align: left;
+.menuHamburguesa .lihamburguesa {
+  list-style: none;
+  width: 100%;
+  text-align: center;
+  padding: 10px 0;
+  color: white; /* Color blanco por defecto */
+  font-size: 1.2em; /* Tamaño de fuente */
+  transition: color 0.3s ease; /* Transición suave para el color del texto */
 }
 
-.pie_estadistico {
-  height: 500px;
-  width: 500px;
-  margin: 0 auto; /* Centra el pie_estadistico */
+.menuHamburguesa .lihamburguesa:hover {
+  color: #FFFF00;
 }
 
-/* Carrito */
-.carritoemoti {
-  bottom: 90px; /* Espacio encima del botón de WhatsApp */
-  right: 20px;
+.menuHamburguesa .lihamburguesa a {
+  color: inherit; 
+  text-decoration: none; 
+  display: block; 
+  padding: 10px; 
+  transition: color 0.3s ease; 
+}
+
+.menuHamburguesa .lihamburguesa a:hover {
+  color: #FFFF00; 
+}
+
+
+
+  
+.openHamburguesa {
+    right: 0;
+}
+
+.carritocompra {
+  position: fixed;
+  top: 800px;
+  bottom: 20px; 
+  right: 30px;
+  z-index: 1000;
 }
 
 .carritoemoti a {
@@ -2261,51 +1680,37 @@ input[type=number]::-webkit-outer-spin-button {
   transform: scale(1.1); /* Efecto de agrandamiento */
 }
 
-/* Estilos generales para los botones de categorías */
-.categorias {
+
+.centro_control {
   display: flex;
-  justify-content: center; /* Centrar los botones */
-  gap: 15px; /* Espacio entre botones */
-  margin: 20px 0;
-  flex-wrap: wrap; /* Permite que los botones se ajusten en varias líneas si no hay suficiente espacio */
+  justify-content: center; /* Centra el contenido horizontalmente */
+  align-items: flex-start;
+  width: 100%; /* Ocupa el 100% del contenedor padre */
+  margin: 20px auto;
+  padding: 20px;
+  border: 2px solid #ccc;
+  border-radius: 10px;
+  background: #f9f9f9;
 }
 
-.categorias button {
-  padding: 15px 25px; /* Tamaño más grande */
-  font-size: 18px; /* Texto más grande */
-  border: none;
-  background-color: orange; /* Botón color naranja */
-  color: white; /* Texto blanco */
-  cursor: pointer;
-  border-radius: 8px; /* Bordes redondeados */
-  transition: background 0.3s, transform 0.2s;
-  white-space: nowrap; /* Impide que el texto se divida en varias líneas */
+.left-section, .right-section  {
+  width: 100%; /* Ocupa el 100% del contenedor padre */
+  padding: 10px;
+  text-align: left;
 }
-
-/* Estado del botón activo */
-.categorias button.activo {
-  background-color: #d68600; /* Un naranja más oscuro para el botón activo */
-}
-
-/* Efecto hover */
-.categorias button:hover {
-  background-color: red; /* Cambio a rojo al pasar el mouse */
-  transform: scale(1.1); /* Efecto de agrandamiento */
+.pie_estadistico {
+  height: 500px;
+  width: 500px;
+  margin: 0 auto; /* Centra el pie_estadistico */
 }
 
 
-/* Estilos generales para ambos botones */
-.whasapp,
-.carritoemoti {
-  position: fixed;
-  z-index: 1000;
-}
 
-
-/* WhatsApp */
 .whasapp {
-  bottom: 20px;
-  right: 20px;
+  position: fixed;
+  bottom: 20px; 
+  right: 20px;  
+  z-index: 1000;
 }
 
 .whatsapp-btn {
@@ -2328,7 +1733,11 @@ input[type=number]::-webkit-outer-spin-button {
   background-color: #1ebe5d;
   transform: scale(1.1);
 }
-
+.pie_estadistico{
+  height: 500px;
+  width: 500px;
+  
+}
 .infocliente{
   color: white;
   font-size: 25px;
@@ -2355,6 +1764,80 @@ ul {
   list-style: none;
   padding: 0;
 }
+
+/* Header */
+header {
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.6), rgba(50, 50, 50, 0.8)), url('../img/portada.jpg') no-repeat center/cover;
+  color: #fff;
+  text-align: center;
+  height: 600px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.header-title {
+  font-size: 3.5em;
+  font-weight: bold;
+  color: #FFA500;
+  margin-bottom: 10px;
+}
+
+.header-subtitle {
+  font-size: 1.6em;
+  max-width: 600px;
+  color: #fffb00;
+}
+
+/* Navbar */
+.navbar {
+  background-color: #333;
+  padding: 15px 0;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  height: 70px;
+}
+
+.navbar ul {
+  display: flex;
+  
+  justify-content: center;
+  gap: 10px;
+}
+
+.navbar ul li a {
+  color: white;
+  font-size: 1.1em;
+  font-weight: 500;
+  padding: 10px;
+  transition: color 0.3s;
+}
+
+.navbar ul li a:hover {
+  color: #fffb00;
+}
+
+/* Wave */
+.wave {
+  background-image: url('https://www.svgrepo.com/show/166897/wave.svg');
+  height: 80px;
+  background-size: cover;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+}
+
+h2 {
+  font-size: 2.5em; 
+  color: #dd0808; 
+  text-align: center;
+  margin-bottom: 20px; 
+}
+
 
 p {
   font-size: 1.2em;
@@ -2399,6 +1882,42 @@ p {
   margin: 0 auto 20px;
   line-height: 1.8;
 }
+
+.section-products .cards ul {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+/* Cards */
+.card {
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  width: 280px;
+  text-align: left;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.2);
+}
+.cards ul {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  list-style: none;
+}
+
+.card-content strong {
+  color: #ff6600;
+}
+
 /* Buttons */
 .btn {
   background-color: #ddab08;
@@ -2412,6 +1931,89 @@ p {
 }
 
 .btn:hover {
+  background-color: #dd0808;
+}
+
+/* Contact Form */
+.contact-form form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.contact-form input,
+.contact-form textarea {
+  width: 60%;
+  padding: 12px;
+  font-size: 1em;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.contact-form input:focus,
+.contact-form textarea:focus {
+  outline: none;
+  border-color: #dd0808;
+}
+
+.contact-form button {
+  background-color: #dd0808;
+  color: white;
+  padding: 12px 30px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.contact-form button:hover {
+  background-color: #dd0808;
+}
+
+/* Footer */
+.footer {
+  background-color: #333;
+  color: white;
+  padding: 40px 20px;
+}
+
+.footer .box-container {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.footer .box {
+  flex-basis: 25%;
+  margin-bottom: 20px;
+}
+
+.footer h3 {
+  font-size: 1.5em;
+  color: #dd0808;
+  margin-bottom: 20px;
+}
+
+.footer p,
+.footer .links,
+.footer .days {
+  font-size: 1em;
+  margin-bottom: 10px;
+  color: white;
+}
+
+.footer .btn {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: #dd0808;
+  color: white;
+  border-radius: 5px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.footer .btn:hover {
   background-color: #dd0808;
 }
 
@@ -2535,6 +2137,7 @@ p {
   transform: scale(0.95); /* Efecto de reducción al hacer clic */
 }
 
+/* Animación de entrada */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -2543,289 +2146,6 @@ p {
   to {
     opacity: 1;
     transform: scale(1);
-  }
-}
-
-@media screen and (max-width: 768px) {
-  header {
-    height: 400px;
-    padding: 20px;
-    background-position: center;
-    background-size: cover;
-  }
-  .text-on-image {
-    display: none;
-  }
-  .wave {
-    height: 40px;
-    background-size: contain;
-  }
-  .logo-large {
-    width: 440px;
-    margin-top: 10px;
-  }
-  .navbar-container {
-    padding: 5px ;
-    gap: 10px;
-  }
-  .navbar-left {
-    gap: 10px;
-  }
-  .navbar-right {
-    gap: 10px;
-    margin-right: 10px;
-  }
-  .btn-categorias {
-    font-size: 10px;
-    padding: 5px;
-  }
-  .dropdown-categorias {
-    width: 130px;
-  }
-  .item-categoria {
-    font-size: 12px;
-    padding: 8px 5px;
-  }
-  .form-buscador {
-    max-width: 210px;
-  }
-  .input-buscador {
-    font-size: 10px;
-    padding: 8px 10px;
-  }
-  .boton-buscador {
-    font-size: 10px;
-    padding: 8px 14px;
-  }
-  .icono-link i {
-    font-size: 0.9em;
-    margin-right:12px;
-  }
-
-  #hamburguesa {
-    font-size: 1.6rem;
-    top: 20px;
-    right: 10px;
-  }
-  #cerrarHamburguesa {
-    font-size: 2rem;
-    margin-bottom: 20px;
-  }
-  .menuHamburguesa {
-    width: 75%; 
-    padding: 15px;
-    text-align: left; 
-  }
-  .menuHamburguesa ul {
-    align-items: flex-start; 
-  }
-  .menuHamburguesa .lihamburguesa {
-    font-size: 1em;
-    padding: 8px 0;
-    text-align: left;
-    width: 100%;
-  }
-  .menuHamburguesa .lihamburguesa a {
-    padding-left: 10px;
-    font-size: 1em;
-  }
-  .menuHamburguesa #libienvenido,
-  .menuHamburguesa .infocliente {
-    text-align: left;
-    padding-left: 10px;
-    font-size: 0.95em;
-  }
-  .menuHamburguesa #lilinea {
-    text-align: center;
-    font-size: 0.8em;
-  }
-  .whasapp {
-    bottom: 15px;
-    right: 15px;
-  }
-  .whatsapp-btn {
-    width: 45px;
-    height: 45px;
-    font-size: 22px;
-  }
-  .carritoemoti a {
-    width: 45px;
-    height: 45px;
-    font-size: 22px;
-  }
-  .sobre-nosotros {
-    padding: 30px 20px;
-  }
-  .contenedor-nosotros {
-    flex-direction: column;
-    gap: 20px;
-    align-items: center;
-  }
-  .imagen-nosotros {
-    flex: none;
-    width: 100%;
-  }
-  .superposicion-video {
-    position: absolute;
-    bottom: 10px;
-    left: 180px;
-    width: 130px;
-    border-radius: 10px;
-  }
-  .informacion-contacto {
-    display: none;
-  }
-  .texto-nosotros h2 {
-    font-size: 1.5rem;
-  }
-  .texto-nosotros p {
-    font-size: 1rem;
-    color: #333;
-  }
-  .boton-reproducir {
-    font-size: 1.5rem;
-    padding: 8px;
-  }
-  .boton {
-    font-size: 1rem;
-    padding: 8px 15px;
-  }
-  .pie_estadistico {
-    width: 100%;
-    height: auto;
-    max-width: 300px; /* Puedes ajustar esto según tu diseño */
-  }
-  .categorias {
-    justify-content: flex-start; /* Alinea los botones a la izquierda en lugar de centrar */
-    gap: 10px; /* Menor espacio entre botones */
-  }
-  .categorias button {
-    padding: 12px 20px; /* Tamaño reducido en dispositivos móviles */
-    font-size: 16px; /* Texto ligeramente más pequeño */
-  }
-  .categorias button {
-    padding: 10px 15px; /* Aún más pequeño en pantallas muy pequeñas */
-    font-size: 14px; /* Texto aún más pequeño */
-  }
-  .whatsapp-btn,
-  .carritoemoti a {
-    width: 60px;
-    height: 60px;
-    font-size: 22px;
-  }
-  .whasapp {
-    bottom: 15px;
-    right: 15px;
-  }
-  .carritoemoti {
-    bottom: 80px; /* Espacio suficiente entre botones */
-    right: 15px;
-  }
-  .reserva {
-    padding: 30px 15px;
-  }
-  .contenedor-reserva {
-    flex-direction: column;
-    align-items: center;
-  }
-  .imagen-reserva img {
-    width: 100%;
-    max-width: 400px;
-    height: auto;
-    border-radius: 10px;
-  }
-  .formulario-reserva {
-    width: 100%;
-    max-width: 500px;
-    padding: 15px;
-    height: auto;
-    box-sizing: border-box;
-  }
-  .campo {
-    margin-bottom: 15px;
-  }
-  .boton {
-    width: 100%;
-    padding: 12px;
-    font-size: 1.1rem;
-  }
-  .contacto {
-    width: 100%;
-    margin-left: 0;
-    padding: 15px;
-    font-size: 1rem;
-  }
-  
-}
-
-@media screen and (min-width: 768px) and (max-width: 1024px) {
-  /* SOBRE NOSOTROS RESPONSIVE */
-
-  .contenedor-nosotros {
-    flex-direction: column;
-    text-align: center;
-    gap: 30px;
-  }
-
-  .imagen-nosotros,
-  .texto-nosotros {
-    flex: 1 1 100%;
-  }
-
-  .superposicion-video {
-    width: 240px; /* Más pequeña */
-    left: 60%; /* Ajustada para mantener posición */
-    bottom: 10px; /* Un poco más arriba para evitar desborde */
-  }
-
-  .miniatura-video {
-    border-radius: 8px;
-  }
-
-  .boton-reproducir {
-    font-size: 1rem;
-    padding: 6px;
-  }
-
-  .informacion-contacto {
-    font-size: 1.2rem;
-    padding: 4px 8px;
-    bottom: 5px;
-    left: 31%;
-    height: auto;
-  }
-
-  .texto-nosotros h2 {
-    font-size: 1.8rem;
-  }
-
-  .texto-nosotros p {
-    font-size: 1rem;
-  }
-
-  /* RESERVA RESPONSIVE */
-
-  .contenedor-reserva {
-    flex-direction: column;
-    align-items: center;
-    gap: 30px;
-  }
-
-  .imagen-reserva img {
-    max-width: 100%;
-    height: auto;
-  }
-
-  .formulario-reserva {
-    width: 100%;
-    height: auto;
-  }
-
-  .contacto {
-    margin-left: 0;
-    width: 100%;
-    font-size: 0.9rem;
-    top: 0;
   }
 }
 

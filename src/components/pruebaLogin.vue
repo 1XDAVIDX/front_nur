@@ -2,20 +2,40 @@
 import Swal from 'sweetalert2';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-import { ref } from 'vue';
+import { ref, onMounted,onBeforeUnmount } from 'vue';
 import * as jwt_decode from 'jwt-decode';
 
 export default {
   setup() {
     const router = useRouter();
-
+    const inFormView = ref(false) // true si estás en Login o Registro en móvil
     const isSignUp = ref(false);
+    const toggleMode = (signUpMode) => {
+      isSignUp.value = signUpMode
+      if (isMobile.value) {
+        inFormView.value = true // estamos viendo el formulario
+      }
+    }
 
-    const toggleMode = (modo) => {
-      isSignUp.value = modo;
-    };
+    const isMobile = ref(window.innerWidth <= 768)
 
-    
+const updateIsMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
+
+onMounted(() => {
+  window.addEventListener('resize', updateIsMobile)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateIsMobile)
+})
+
+const returnToMain = () => {
+  this.isSignUp = false;
+ 
+}
+
 
     // LOGIN
     const login = ref({
@@ -28,6 +48,14 @@ export default {
 
         const insertarlogin = async () => {
             try {
+               Swal.fire({
+                        title: "Ingresando...",
+                        text: "Por favor, espera mientras procesamos tu Ingreso.",
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                          Swal.showLoading(); 
+                        },
+                });
                 // Realiza la solicitud POST
                 const respuesta = await axios.post('http://127.0.0.1:8000/login', login.value);
                 //const respuesta = await axios.post('http://192.168.80.22:8000/login', login.value);
@@ -60,6 +88,10 @@ export default {
                     title: 'Inicio de sesión exitoso',
                     text: 'Bienvenido a tu cuenta'
                 });
+                if (isMobile.value) {
+                  isSignUp.value = mirar.value !== "admin"; // o false si quieres mostrar login
+                }
+
 
                 // Redirige al usuario según su rol
                 if (mirar.value === "admin") {
@@ -83,7 +115,7 @@ export default {
       id_usuario: "",
       nombre: "",
       contraseña: "",
-      rol: ""
+      rol: "cliente"
     });
 
     const showPassword = ref(false);
@@ -104,6 +136,14 @@ export default {
       }
 
       try {
+        Swal.fire({
+                title: "Creando Cuenta...",
+                text: "Por favor, espera mientras procesamos Creando Cuenta.",
+                allowOutsideClick: false,
+                didOpen: () => {
+                  Swal.showLoading(); 
+                },
+        });
         const respuesta = await axios.post('http://127.0.0.1:8000/insertar/usuario', usuario.value);
         Swal.fire({
           icon: 'success',
@@ -124,10 +164,21 @@ export default {
       //console.log("Recuperar contra")
     }
 
+ onMounted(() => {
+  const checkMobile = () => {
+    isMobile.value = window.innerWidth <= 768;
+  };
+  checkMobile();
+  window.addEventListener('resize', checkMobile);
+});
+
     return {
       // toggling
       isSignUp,
       toggleMode,
+      isMobile,
+      returnToMain,
+      inFormView,
 
       // login
       login,
@@ -146,6 +197,7 @@ export default {
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <div class="wrapper">
     <div class="container" :class="{ active: isSignUp }" id="container">
+      
       <!-- REGISTRO -->
       <div class="form-container sign-up">
         <form @submit.prevent="insertarUsuario">
@@ -173,13 +225,13 @@ export default {
             </button>
           </div>
 
-          <!----><select v-model="usuario.rol" required class="select-rol">
-            <option value="" disabled>Selecciona un rol</option>
-            <option value="admin">Admin</option>
-            <option value="cliente">Cliente</option>
-          </select>
+          
 
           <button type="submit">Inscribirse</button>
+          <button v-if="isMobile && inFormView" class="mobile-back-btn" @click="toggleMode(false)">
+            ← Volver
+          </button>
+
         </form>
       </div>
 
@@ -198,7 +250,9 @@ export default {
           <input v-model="login.contraseña" type="password" placeholder="Contraseña" required />
           <a href="#" type="button" @click="recuperarContrasena" class="boton-recuperar">¿Olvidaste tu contraseña?</a>
           <button type="submit">Iniciar Sesión</button>
-          
+          <button v-if="isMobile" class="mobile-toggle-btn" @click="toggleMode(!isSignUp)">
+            {{ isSignUp ? '¿Ya tienes una cuenta? Inicia sesión' : '¿No tienes cuenta? Crea una' }}
+          </button>
         </form>
       </div>
 
@@ -269,7 +323,9 @@ body {
     justify-content: center; /* Centra el contenido dentro del contenedor */
     align-items: center;     /* Alinea verticalmente el contenido */
 }
-
+.mobile-toggle-btn {
+  display: block; /* Asegúrate de esto */
+}
 
 .container p{
     font-size: 24px;
@@ -474,6 +530,21 @@ body {
     transform: translateX(-100%);
     border-radius: 0 150px 100px 0;
 }
+.mobile-back-btn {
+  margin-top: 10px;
+  background-color: #999;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.mobile-back-btn:hover {
+  background-color: #666;
+}
 
 .toggle{
     background-color: #512da8;
@@ -523,4 +594,60 @@ body {
 .container.active .toggle-right{
     transform: translateX(200%);
 }
+
+@media (max-width: 768px) {
+  .container {
+    width: 100%;
+    height: auto;
+    flex-direction: column;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .toggle-container {
+    display: none !important; /* Oculta completamente el panel toggle */
+  }
+
+  .form-container {
+    position: relative;
+    width: 100%;
+    height: auto;
+    transform: none !important;
+    opacity: 1 !important;
+    z-index: 5 !important;
+  }
+
+  .sign-in,
+  .sign-up {
+    display: none;
+  }
+
+  .container:not(.active) .sign-in {
+    display: block;
+  }
+
+  .container.active .sign-up {
+    display: block;
+  }
+
+  .mobile-toggle-btn {
+    display: block;
+    margin-top: 20px;
+    background-color: #512da8;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  /* Oculta el botón en pantallas grandes */
+  @media (min-width: 769px) {
+    .mobile-toggle-btn {
+      display: none;
+    }
+  }
+}
+
 </style>
